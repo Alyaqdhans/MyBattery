@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    res/values-night/themes.xml
+    Overrides colorBackground for the dark theme so the launch window
+    background is #0A0E1A before Compose even starts drawing.
+-->
+<resources>
+
+    <style name="Theme.MyBattery" parent="android:Theme.Material.NoActionBar">
+        <item name="android:colorBackground">#0A0E1A</item>
+        <item name="android:windowBackground">?android:attr/colorBackground</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+</resources>
