@@ -15,11 +15,18 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.ui.res.painterResource
@@ -30,14 +37,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,30 +71,39 @@ import kotlinx.coroutines.withContext
 
 private object Routes {
     const val SETUP           = "setup"
-    const val SCANNING        = "scanning"
     const val DASHBOARD       = "dashboard"
     const val WRONG_FOLDER    = "wrong_folder"
     const val FOLDER_DELETED  = "folder_deleted"
     const val PERMISSION_LOST = "permission_lost"
+    const val LOG_RAW         = "log_raw"
 }
 
 private val AccentGreen  = Color(0xFF00E5A0)
 private val AccentOrange = Color(0xFFFFAA44)
 private val AccentRed    = Color(0xFFFF5C6C)
+private val AccentBlue   = Color(0xFF4DA6FF)
+
+// Darker variants used for the gauge in light theme for better contrast
+private val AccentGreenLight  = Color(0xFF007A50)
+private val AccentOrangeLight = Color(0xFFB85C00)
+private val AccentRedLight    = Color(0xFFB52233)
+private val AccentBlueLight   = Color(0xFF1A5FAA)
 
 private val DarkBgDeep        = Color(0xFF080D18)
 private val DarkBgCard        = Color(0xFF111827)
 private val DarkBgCardBorder  = Color(0xFF1F2D42)
 private val DarkTextPrimary   = Color(0xFFE8EEFF)
 private val DarkTextSecondary = Color(0xFF7A8BA8)
-private val DarkTextMuted     = Color(0xFF334155)
+private val DarkTextMuted     = Color(0xFF5A7090)
 
 private val LightBgDeep        = Color(0xFFF1F5F9)
 private val LightBgCard        = Color(0xFFFFFFFF)
 private val LightBgCardBorder  = Color(0xFFE2E8F0)
 private val LightTextPrimary   = Color(0xFF0F172A)
 private val LightTextSecondary = Color(0xFF475569)
-private val LightTextMuted     = Color(0xFF94A3B8)
+private val LightTextMuted     = Color(0xFF64748B)
+
+
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 class MainActivity : ComponentActivity() {
@@ -107,7 +129,12 @@ class MainActivity : ComponentActivity() {
         val healthPercent: Int?,
         val healthSource: String = "",
         val healthUnsupported: Boolean = false,
-        val cycleCount: Int?,
+        val cycleCount: Int?,           // usageRaw / 1000
+        // raw values exactly as found in the log
+        val asocRaw: String  = "",      // e.g. "96" or "unsupported" or ""
+        val bsohRaw: String  = "",
+        val usageRaw: String = "",      // raw integer before /1000
+        val llbType: String  = "",      // "CAL" | "MAN" | ""
         val firstUseDateMs: Long = 0L,
         val logFileName:    String = "",
         val logTimestampMs: Long   = 0L,
@@ -234,9 +261,167 @@ class MainActivity : ComponentActivity() {
                 it.mime != dirMime && it.name.endsWith(".log", ignoreCase = true)
             }.toMutableList()
         }
-        // Filename is YYYYMMDDHHMMSS — lexicographic order == chronological order.
-        // No parsing, no lastModified (copy-to-sdcard resets it anyway).
         return allLogs.maxByOrNull { it.name }
+    }
+
+    /** Returns all log entries sorted newest-first (by filename). */
+    private fun listAllLogs(folderUri: Uri, context: Context): List<DocEntry> {
+        val treeDocId = DocumentsContract.getTreeDocumentId(folderUri)
+        val topLevel  = listChildren(folderUri, treeDocId, context)
+        val dirMime   = DocumentsContract.Document.MIME_TYPE_DIR
+
+        var allLogs = topLevel.filter { isDumpStateLog(it.name) }.toMutableList()
+        if (allLogs.isEmpty()) {
+            for (child in topLevel) {
+                if (child.mime == dirMime) {
+                    allLogs.addAll(listChildren(folderUri, child.id, context)
+                        .filter { isDumpStateLog(it.name) })
+                }
+            }
+        }
+        if (allLogs.isEmpty()) {
+            allLogs = topLevel.filter {
+                it.mime != dirMime && it.name.endsWith(".log", ignoreCase = true)
+            }.toMutableList()
+        }
+        return allLogs.sortedByDescending { it.name }
+    }
+
+    /** Parse a specific log entry by name (not necessarily the newest). */
+    private fun parseLogEntry(
+        folderUri: Uri,
+        entry: DocEntry,
+        context: Context
+    ): BatteryInfo {
+        val fileUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, entry.id)
+        return try {
+            context.contentResolver.openInputStream(fileUri)?.use { stream ->
+                parseInputStream(stream, entry.name)
+            } ?: BatteryInfo(healthPercent = null, cycleCount = null,
+                logFileName = entry.name, errorMessage = "Could not open ${entry.name}")
+        } catch (e: Exception) {
+            BatteryInfo(healthPercent = null, cycleCount = null,
+                logFileName = entry.name, errorMessage = "Read error: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Extracts organized battery sections from the log, preserving the order they appear in the file.
+     */
+    private fun extractBatterySection(
+        folderUri: Uri,
+        entry: DocEntry,
+        context: Context
+    ): String {
+        val fileUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, entry.id)
+        return try {
+            context.contentResolver.openInputStream(fileUri)?.use { stream ->
+                val sections = mutableListOf<Pair<String, String>>()
+                var currentSection = ""
+                var currentLabel = ""
+                var state = 0
+
+                BufferedReader(InputStreamReader(stream)).use { reader ->
+                    reader.forEachLine { line ->
+                        when (state) {
+                            0 -> {
+                                when {
+                                    line.contains("BatteryInfoBackUp") -> {
+                                        if (currentSection.isNotEmpty()) {
+                                            sections.add(Pair(currentLabel, currentSection.trim()))
+                                        }
+                                        state = 1
+                                        currentLabel = "BatteryInfoBackUp"
+                                        currentSection = ""
+                                    }
+                                    line.contains("DUMP OF SERVICE battery:") -> {
+                                        if (currentSection.isNotEmpty()) {
+                                            sections.add(Pair(currentLabel, currentSection.trim()))
+                                        }
+                                        state = 2
+                                        currentLabel = "Battery Service Dump"
+                                        currentSection = ""
+                                    }
+                                }
+                            }
+                            1 -> {
+                                if (line.isNotBlank() && !line.startsWith(" ") && !line.startsWith("\t")
+                                    && !line.trimStart().startsWith("m")) {
+                                    state = 0
+                                    if (line.contains("DUMP OF SERVICE battery:")) {
+                                        if (currentSection.isNotEmpty()) {
+                                            sections.add(Pair(currentLabel, currentSection.trim()))
+                                        }
+                                        state = 2
+                                        currentLabel = "Battery Service Dump"
+                                        currentSection = ""
+                                    } else {
+                                        sections.add(Pair(currentLabel, currentSection.trim()))
+                                        currentSection = ""
+                                        currentLabel = ""
+                                    }
+                                } else {
+                                    currentSection += line + "\n"
+                                }
+                            }
+                            2 -> {
+                                if (line.contains("DUMP OF SERVICE") && !line.contains("DUMP OF SERVICE battery:")) {
+                                    state = 0
+                                    sections.add(Pair(currentLabel, currentSection.trim()))
+                                    currentSection = ""
+                                    currentLabel = ""
+                                } else {
+                                    currentSection += line + "\n"
+                                }
+                            }
+                        }
+                    }
+                    if (currentSection.isNotEmpty()) {
+                        sections.add(Pair(currentLabel, currentSection.trim()))
+                    }
+                }
+
+                if (sections.isEmpty()) {
+                    "(no battery sections found)"
+                } else {
+                    // Strip [*LogBuffer] sections from the extracted content
+                    val logBufferRegex = Regex("""^\[[\w]+LogBuffer\]""")
+                    sections.joinToString("\n\n") { (label, content) ->
+                        val filteredContent = buildString {
+                            var insideBuffer = false
+                            content.lines().forEach { line ->
+                                val trimmed = line.trim()
+                                when {
+                                    logBufferRegex.containsMatchIn(trimmed) -> {
+                                        insideBuffer = true
+                                        // skip the header line
+                                    }
+                                    insideBuffer && trimmed.isEmpty() -> {
+                                        // blank line might end the buffer block — keep skipping
+                                    }
+                                    insideBuffer && (trimmed.startsWith("[") || (!trimmed.startsWith(" ") && trimmed.isNotEmpty() && !trimmed.first().isDigit())) -> {
+                                        // Next non-buffer section starts
+                                        insideBuffer = false
+                                        appendLine(line)
+                                    }
+                                    insideBuffer -> {
+                                        // Still inside a buffer section — skip
+                                    }
+                                    else -> appendLine(line)
+                                }
+                            }
+                        }.trimEnd()
+                        if (label.isNotEmpty()) {
+                            "━━━ $label ━━━\n\n$filteredContent"
+                        } else {
+                            filteredContent
+                        }
+                    }
+                }
+            } ?: "(could not open file)"
+        } catch (e: Exception) {
+            "(read error: ${e.localizedMessage})"
+        }
     }
 
     private fun parseLatestLog(
@@ -318,8 +503,12 @@ class MainActivity : ComponentActivity() {
     private fun parseInputStream(stream: java.io.InputStream, fileName: String): BatteryInfo {
         var asoc: Int?        = null
         var asocSeen          = false
+        var asocRaw           = ""
         var bsoh: Int?        = null
+        var bsohRaw           = ""
         var usage: Int?       = null
+        var usageRaw          = ""
+        var llbType           = ""
         var firstUseDateMs    = 0L
         var logTimestampMs    = 0L
 
@@ -335,19 +524,23 @@ class MainActivity : ComponentActivity() {
 
                 if (t.contains("mSavedBatteryAsoc:")) {
                     asocSeen = true
+                    asocRaw  = t.substringAfter("mSavedBatteryAsoc:").trim()
                     asoc     = extractValueOrNull(t, "mSavedBatteryAsoc:")
                 }
                 if (t.contains("mSavedBatteryBsoh:")) {
-                    bsoh = extractValueOrNull(t, "mSavedBatteryBsoh:")
+                    bsohRaw = t.substringAfter("mSavedBatteryBsoh:").trim()
+                    bsoh    = extractValueOrNull(t, "mSavedBatteryBsoh:")
                 }
 
                 if (t.contains("mSavedBatteryUsage:")) {
-                    val raw = extractValueOrNull(t, "mSavedBatteryUsage:")
-                    usage = if (raw != null) raw / 1000 else null
+                    usageRaw = t.substringAfter("mSavedBatteryUsage:").trim()
+                    val raw  = extractValueOrNull(t, "mSavedBatteryUsage:")
+                    usage    = if (raw != null) raw / 1000 else null
                 }
 
                 if (firstUseDateMs == 0L) {
                     llbRegex.find(t)?.let { m ->
+                        llbType        = m.groupValues[1].uppercase()
                         firstUseDateMs = try {
                             compactDateFmt.parse(m.groupValues[2])?.time ?: 0L
                         } catch (_: Exception) { 0L }
@@ -386,6 +579,10 @@ class MainActivity : ComponentActivity() {
             healthSource      = healthSource,
             healthUnsupported = healthUnsupported,
             cycleCount        = usage,
+            asocRaw           = asocRaw,
+            bsohRaw           = bsohRaw,
+            usageRaw          = usageRaw,
+            llbType           = llbType,
             firstUseDateMs    = firstUseDateMs,
             logFileName       = fileName,
             logTimestampMs    = logTimestampMs,
@@ -394,15 +591,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractTimestampFromFileName(name: String): Long {
-        // Matches both:  20260215_062158  /  20260215-062158  /  20260215062158
-        val compact = Regex("""(\d{8})[_-](\d{6})|(\d{8})(\d{6})""").find(name) ?: return 0L
-        val date = if (compact.groupValues[1].isNotEmpty()) compact.groupValues[1] else compact.groupValues[3]
-        val time = if (compact.groupValues[2].isNotEmpty()) compact.groupValues[2] else compact.groupValues[4]
-        val str = "${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6, 8)}" +
-                " ${time.substring(0, 2)}:${time.substring(2, 4)}:${time.substring(4, 6)}"
-        return try {
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).parse(str)?.time ?: 0L
-        } catch (_: Exception) { 0L }
+        // Match exactly 12 continuous digits (YYYYMMDDHHmm format)
+        val match12 = Regex("""(\d{12})""").find(name)
+        if (match12 != null) {
+            val full = match12.groupValues[1]
+            val year = full.substring(0, 4)
+            val month = full.substring(4, 6)
+            val day = full.substring(6, 8)
+            val hour = full.substring(8, 10)
+            val minute = full.substring(10, 12)
+            val str = "$year-$month-$day $hour:$minute:00"
+            return try {
+                SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).parse(str)?.time ?: 0L
+            } catch (_: Exception) { 0L }
+        }
+
+        return 0L
     }
 
     private fun hasPersistedPermission(context: Context, uri: Uri): Boolean {
@@ -506,26 +710,187 @@ class MainActivity : ComponentActivity() {
     @Composable fun textMuted()            = MaterialTheme.colorScheme.outlineVariant
     @Composable fun accentGreenEffective() = MaterialTheme.colorScheme.primary
 
+    // Gauge accent colors — darker in light theme for readability
+    @Composable fun gaugeGreen()  = if (isSystemInDarkTheme()) AccentGreen  else AccentGreenLight
+    @Composable fun gaugeOrange() = if (isSystemInDarkTheme()) AccentOrange else AccentOrangeLight
+    @Composable fun gaugeRed()    = if (isSystemInDarkTheme()) AccentRed    else AccentRedLight
+    @Composable fun gaugeBlue()   = if (isSystemInDarkTheme()) AccentBlue   else AccentBlueLight
+    @Composable fun gaugeGray()   = MaterialTheme.colorScheme.outlineVariant
+
     @Composable
     fun MyBatteryApp() {
         val context = LocalContext.current
         val prefs   = context.getSharedPreferences("battery_prefs", Context.MODE_PRIVATE)
 
-        val savedUriStr    = prefs.getString("folder_uri", null)
-        val savedUri       = savedUriStr?.toUri()
-        var alreadyHasPerm by remember { mutableStateOf(savedUri != null && hasPersistedPermission(context, savedUri)) }
+        val savedUriStr = prefs.getString("folder_uri", null)
+        val savedUri    = savedUriStr?.toUri()
+        val hasSavedPerm = savedUri != null && hasPersistedPermission(context, savedUri)
+        val hasSavedUri  = savedUri != null   // URI saved but permission may be gone
 
-        var folderUri                  by remember { mutableStateOf(savedUri) }
-        var batteryInfo                by remember { mutableStateOf<BatteryInfo?>(null) }
-        // false = folder gone / permission lost → show "cached" badge in dashboard
+        var alreadyHasPerm by remember { mutableStateOf(hasSavedPerm) }
+        var folderUri      by remember { mutableStateOf(savedUri) }
+        var batteryInfo    by remember { mutableStateOf<BatteryInfo?>(null) }
         var folderAccessible           by remember { mutableStateOf(true) }
         var hasEverScannedSuccessfully by remember { mutableStateOf(false) }
         var isRefreshing               by remember { mutableStateOf(false) }
+        var allLogEntries  by remember { mutableStateOf<List<DocEntry>>(emptyList()) }
+        var selectedLogInfo by remember { mutableStateOf<BatteryInfo?>(null) }
+        var showLogSheet   by remember { mutableStateOf(false) }
+        var isLoadingDetail by remember { mutableStateOf(false) }
+        var rawLogText     by remember { mutableStateOf("") }
+        var isLoadingRaw   by remember { mutableStateOf(false) }
+
+        // Gauge animation state hoisted here so it survives navigation (back from log raw, etc.)
+        // and never causes a wave-jump redraw when the dashboard recomposes.
+        val arcAnimatable  = remember { Animatable(0f) }
+        var gaugeAmplitude by remember { mutableStateOf(1f) }
+        // Incrementing this key re-triggers the fill animation (e.g. when cache is loaded silently)
+        var gaugeReplayKey by remember { mutableStateOf(0) }
+
+        // Drive the amplitude pulse from app scope — survives navigation
+        LaunchedEffect(isLoadingDetail) {
+            if (!isLoadingDetail) { gaugeAmplitude = 1f; return@LaunchedEffect }
+            while (true) {
+                delay(900L)
+                gaugeAmplitude = if (gaugeAmplitude < 0.5f) 1f else 0f
+            }
+        }
 
         val navController = rememberNavController()
         val scope         = rememberCoroutineScope()
 
-        val startDestination = Routes.SCANNING
+        // ── Live access monitor ───────────────────────────────────────────────
+        // Folder deletion and permission revocation only happen while the app is
+        // backgrounded. Checking on ON_RESUME covers both cases with zero overhead.
+        val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+        val currentFolderUri = folderUri
+        if (currentFolderUri != null) {
+            DisposableEffect(lifecycle, currentFolderUri) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                        val hasPerm = hasPersistedPermission(context, currentFolderUri)
+                        if (!hasPerm && alreadyHasPerm) {
+                            // Permission revoked
+                            alreadyHasPerm   = false
+                            folderAccessible = false
+                            allLogEntries    = emptyList()
+                            showLogSheet     = false
+                            val cached = loadCachedBatteryInfo(prefs)
+                            if (cached != null) {
+                                batteryInfo                = cached
+                                hasEverScannedSuccessfully = true
+                                gaugeReplayKey++
+                            }
+                        } else if (hasPerm) {
+                            // Permission intact — check if folder still exists
+                            scope.launch {
+                                val exists = withContext(Dispatchers.IO) {
+                                    findLatestLogEntry(currentFolderUri, context) != null
+                                }
+                                if (!exists && folderAccessible) {
+                                    folderAccessible = false
+                                    allLogEntries    = emptyList()
+                                    showLogSheet     = false
+                                    val cached = loadCachedBatteryInfo(prefs)
+                                    if (cached != null) {
+                                        batteryInfo                = cached
+                                        hasEverScannedSuccessfully = true
+                                        gaugeReplayKey++
+                                    }
+                                } else if (exists && !folderAccessible && alreadyHasPerm) {
+                                    folderAccessible = true
+                                }
+                            }
+                        }
+                    }
+                }
+                lifecycle.addObserver(observer)
+                onDispose { lifecycle.removeObserver(observer) }
+            }
+        }
+
+        // Decide start destination synchronously:
+        //   • No saved URI at all → SETUP (fresh install)
+        //   • Has saved URI (with or without permission) → DASHBOARD
+        //     The startup LaunchedEffect will detect permission loss / folder deletion
+        //     and navigate to the appropriate error screen from there.
+        val startDestination = if (hasSavedUri) Routes.DASHBOARD else Routes.SETUP
+
+        // Run the startup scan exactly once when we have a saved URI.
+        if (hasSavedUri) {
+            LaunchedEffect(Unit) {
+                val uri = savedUri!!
+
+                // ── 1. Permission lost ────────────────────────────────────────
+                if (!hasPersistedPermission(context, uri)) {
+                    val cached = loadCachedBatteryInfo(prefs)
+                    if (cached != null) {
+                        batteryInfo      = cached
+                        folderAccessible = false
+                        hasEverScannedSuccessfully = true
+                        gaugeReplayKey++
+                    }
+                    isLoadingDetail = false
+                    allLogEntries   = emptyList()
+                    navController.navigate(Routes.PERMISSION_LOST) { launchSingleTop = true }
+                    return@LaunchedEffect
+                }
+
+                isLoadingDetail = true
+                val cached = loadCachedBatteryInfo(prefs)
+
+                if (cached != null) {
+                    // Show cached data immediately while we check for updates
+                    batteryInfo = cached
+                    folderAccessible = true
+                    hasEverScannedSuccessfully = true
+
+                    // Check whether the folder still exists and if there's a newer log
+                    val latestEntry = withContext(Dispatchers.IO) { findLatestLogEntry(uri, context) }
+                    if (latestEntry == null) {
+                        // Folder deleted — cached data already in batteryInfo, replay fill
+                        alreadyHasPerm   = false
+                        folderAccessible = false
+                        isLoadingDetail  = false
+                        gaugeReplayKey++
+                        navController.navigate(Routes.FOLDER_DELETED) { launchSingleTop = true }
+                        return@LaunchedEffect
+                    }
+                    val hasNewer = latestEntry.name != cached.logFileName
+                    if (hasNewer) {
+                        val liveInfo = withContext(Dispatchers.IO) { parseLatestLog(uri, context, prefs) }
+                        if (liveInfo.readSuccess) batteryInfo = liveInfo
+                    }
+                    isLoadingDetail = false
+                } else {
+                    // No cache — full scan
+                    val latestEntry = withContext(Dispatchers.IO) { findLatestLogEntry(uri, context) }
+                    if (latestEntry == null) {
+                        isLoadingDetail  = false
+                        alreadyHasPerm   = false
+                        folderAccessible = false
+                        // Try cache as last resort so dashboard isn't empty
+                        val cached = loadCachedBatteryInfo(prefs)
+                        if (cached != null) {
+                            batteryInfo                = cached
+                            hasEverScannedSuccessfully = true
+                            gaugeReplayKey++
+                        }
+                        navController.navigate(Routes.FOLDER_DELETED) { launchSingleTop = true }
+                        return@LaunchedEffect
+                    }
+                    val info = withContext(Dispatchers.IO) { smartScan(uri, context, prefs) }
+                    isLoadingDetail = false
+                    batteryInfo     = info
+                    folderAccessible = true
+                    if (info.readSuccess) {
+                        hasEverScannedSuccessfully = true
+                    } else {
+                        navController.navigate(Routes.WRONG_FOLDER) { launchSingleTop = true }
+                    }
+                }
+            }
+        }
 
         val folderPicker = rememberLauncherForActivityResult(
             ActivityResultContracts.OpenDocumentTree()
@@ -539,11 +904,26 @@ class MainActivity : ComponentActivity() {
                 val isNewFolder = uri.toString() != prefs.getString("folder_uri", null)
                 prefs.edit { putString("folder_uri", uri.toString()) }
                 if (isNewFolder) clearBatteryInfoCache(prefs)
-                folderUri      = uri
-                alreadyHasPerm = true
-                batteryInfo    = null
-                navController.navigate(Routes.SCANNING) {
+                folderUri        = uri
+                alreadyHasPerm   = true
+                folderAccessible = true   // reset the "cached" state — we have live permission now
+                allLogEntries    = emptyList()  // will be reloaded when log sheet is opened
+                // Navigate to dashboard immediately — gauge will show loading while scan runs
+                batteryInfo     = null
+                isLoadingDetail = true
+                navController.navigate(Routes.DASHBOARD) {
                     popUpTo(0) { inclusive = true }; launchSingleTop = true
+                }
+                scope.launch {
+                    val info = withContext(Dispatchers.IO) { smartScan(uri, context, prefs) }
+                    isLoadingDetail = false
+                    if (info.readSuccess) {
+                        batteryInfo      = info
+                        folderAccessible = true
+                        hasEverScannedSuccessfully = true
+                    } else {
+                        navController.navigate(Routes.WRONG_FOLDER) { launchSingleTop = true }
+                    }
                 }
             }
         }
@@ -555,7 +935,16 @@ class MainActivity : ComponentActivity() {
                 val uri = folderUri!!
 
                 if (!hasPersistedPermission(context, uri)) {
-                    isRefreshing = false
+                    isRefreshing  = false
+                    showLogSheet  = false
+                    allLogEntries = emptyList()
+                    // Silently load cache so dashboard has data when user dismisses
+                    val cached = loadCachedBatteryInfo(prefs)
+                    if (cached != null) {
+                        batteryInfo                = cached
+                        hasEverScannedSuccessfully = true
+                        gaugeReplayKey++
+                    }
                     navController.navigate(Routes.PERMISSION_LOST) { launchSingleTop = true }
                     return@launch
                 }
@@ -563,21 +952,37 @@ class MainActivity : ComponentActivity() {
                 val latestEntry = withContext(Dispatchers.IO) { findLatestLogEntry(uri, context) }
 
                 if (latestEntry == null) {
-                    isRefreshing = false
+                    isRefreshing   = false
+                    alreadyHasPerm = false
+                    showLogSheet   = false
+                    // Silently load cache so dashboard has data when user dismisses
+                    val cached = loadCachedBatteryInfo(prefs)
+                    if (cached != null) {
+                        batteryInfo                = cached
+                        hasEverScannedSuccessfully = true
+                        gaugeReplayKey++
+                    }
                     navController.navigate(Routes.FOLDER_DELETED) { launchSingleTop = true }
                     return@launch
                 }
 
+                // Same file already displayed — nothing new to parse, but folder is accessible again
                 val cached = loadCachedBatteryInfo(prefs)
                 if (cached != null && cached.logFileName == latestEntry.name) {
-                    isRefreshing = false
+                    alreadyHasPerm   = true
+                    folderAccessible = true
+                    isRefreshing     = false
                     return@launch
                 }
 
+                // New file found — now show gauge loading and parse it
+                isLoadingDetail = true
                 val info = withContext(Dispatchers.IO) { parseLatestLog(uri, context, prefs) }
-                isRefreshing = false
+                isRefreshing    = false
+                isLoadingDetail = false
                 if (info.readSuccess) {
-                    batteryInfo = info
+                    batteryInfo      = info
+                    alreadyHasPerm   = true
                     folderAccessible = true
                     hasEverScannedSuccessfully = true
                 } else {
@@ -589,89 +994,25 @@ class MainActivity : ComponentActivity() {
         MyBatteryTheme {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 NavHost(
-                    navController    = navController,
-                    startDestination = startDestination,
-                    enterTransition  = { fadeIn(tween(350)) },
-                    exitTransition   = { fadeOut(tween(250)) }
+                    navController      = navController,
+                    startDestination   = startDestination,
+                    enterTransition    = { EnterTransition.None },
+                    exitTransition     = { ExitTransition.None },
+                    popEnterTransition = { EnterTransition.None },
+                    popExitTransition  = { ExitTransition.None }
                 ) {
-                    composable(Routes.SCANNING) {
-                        LaunchedEffect(Unit) {
-                            val cached = loadCachedBatteryInfo(prefs)
-                            if (cached != null) {
-                                val uri           = folderUri
-                                val hasPerm       = uri != null && hasPersistedPermission(context, uri)
-                                // Only list directory — no heavy file I/O yet
-                                val latestEntry   = if (hasPerm)
-                                    withContext(Dispatchers.IO) { findLatestLogEntry(uri!!, context) }
-                                else null
-                                // Compare purely by filename to decide if there's a newer log
-                                val hasNewer      = latestEntry != null && latestEntry.name != cached.logFileName
-                                val liveInfo: BatteryInfo? = if (hasNewer)
-                                    withContext(Dispatchers.IO) { parseLatestLog(uri!!, context, prefs) }
-                                else null
-                                val usedLive      = liveInfo != null && liveInfo.readSuccess
-                                batteryInfo       = if (usedLive) liveInfo else cached
-                                // "cached" badge: only when folder is completely inaccessible.
-                                // If folder is reachable (even same file), badge is hidden.
-                                folderAccessible  = hasPerm && latestEntry != null
-                                hasEverScannedSuccessfully = true
-                                navController.navigate(Routes.DASHBOARD) {
-                                    popUpTo(Routes.SCANNING) { inclusive = true }
-                                }
-                                return@LaunchedEffect
-                            }
-
-                            val uri = folderUri
-                            if (uri == null) {
-                                navController.navigate(Routes.SETUP) {
-                                    popUpTo(Routes.SCANNING) { inclusive = true }
-                                }
-                                return@LaunchedEffect
-                            }
-                            if (!hasPersistedPermission(context, uri)) {
-                                navController.navigate(Routes.PERMISSION_LOST) {
-                                    popUpTo(Routes.SCANNING) { inclusive = true }
-                                }
-                                return@LaunchedEffect
-                            }
-                            val info = withContext(Dispatchers.IO) { smartScan(uri, context, prefs) }
-                            batteryInfo      = info
-                            folderAccessible = true
-                            if (info.readSuccess) {
-                                hasEverScannedSuccessfully = true
-                                navController.navigate(Routes.DASHBOARD) {
-                                    popUpTo(Routes.SCANNING) { inclusive = true }
-                                }
-                            } else {
-                                navController.navigate(Routes.WRONG_FOLDER) {
-                                    popUpTo(Routes.SCANNING) { inclusive = true }
-                                }
-                            }
-                        }
-                        ScanningScreen()
-                    }
-
                     composable(Routes.SETUP) {
-                        // Guard against rapid double-tap: once a pop is in flight, swallow
-                        // any further back gestures until the destination has settled.
-                        var backHandled by remember { mutableStateOf(false) }
-                        BackHandler(enabled = true) {
-                            if (!backHandled && navController.previousBackStackEntry != null) {
-                                backHandled = true
-                                navController.popBackStack()
-                            }
-                            // else: swallow silently — no back stack to pop or already popping
-                        }
                         val showBackButton = navController.previousBackStackEntry != null
+                        var backHandled by remember { mutableStateOf(false) }
+                        BackHandler(enabled = showBackButton) {
+                            if (!backHandled) { backHandled = true; navController.popBackStack() }
+                        }
                         SetupScreen(
                             hasLivePermission = alreadyHasPerm,
                             onPickFolder   = { folderPicker.launch(null) },
                             showBackButton = showBackButton,
                             onBack         = {
-                                if (!backHandled) {
-                                    backHandled = true
-                                    navController.popBackStack()
-                                }
+                                if (!backHandled) { backHandled = true; navController.popBackStack() }
                             },
                             isRefreshing   = isRefreshing,
                             onRescan       = { rescan() }
@@ -680,21 +1021,73 @@ class MainActivity : ComponentActivity() {
 
                     composable(Routes.DASHBOARD) {
                         val info = batteryInfo
-                        if (info != null) {
-                            BatteryDashboard(
-                                info             = info,
-                                folderAccessible = folderAccessible,
-                                isRefreshing     = isRefreshing,
-                                onRescan         = { rescan() },
-                                onShowSteps      = { navController.navigate(Routes.SETUP) }
-                            )
-                        } else {
-                            LaunchedEffect(Unit) {
-                                navController.navigate(Routes.SCANNING) {
-                                    popUpTo(Routes.DASHBOARD) { inclusive = true }
+                        BatteryDashboard(
+                            info             = info ?: BatteryInfo(
+                                healthPercent     = null, cycleCount = null,
+                                healthUnsupported = false, readSuccess = false
+                            ),
+                            folderAccessible = alreadyHasPerm && folderAccessible,
+                            isRefreshing     = isRefreshing,
+                            isLoadingDetail  = isLoadingDetail || info == null,
+                            arcAnimatable    = arcAnimatable,
+                            gaugeAmplitude   = gaugeAmplitude,
+                            gaugeReplayKey   = gaugeReplayKey,
+                            onRescan         = { rescan() },
+                            onShowSteps      = { navController.navigate(Routes.SETUP) },
+                            onShowLogs       = {
+                                val uri = folderUri
+                                if (uri != null && hasPersistedPermission(context, uri)) {
+                                    scope.launch {
+                                        allLogEntries = withContext(Dispatchers.IO) {
+                                            listAllLogs(uri, context)
+                                        }
+                                        showLogSheet = true
+                                    }
+                                } else {
+                                    showLogSheet = true
+                                }
+                            },
+                            showLogSheet     = showLogSheet,
+                            allLogEntries    = allLogEntries,
+                            onDismissSheet   = { showLogSheet = false },
+                            onSelectEntry    = { entry ->
+                                val uri = folderUri
+                                if (uri != null) {
+                                    scope.launch {
+                                        isLoadingDetail = true
+                                        showLogSheet    = false
+                                        val parsed = withContext(Dispatchers.IO) {
+                                            parseLogEntry(uri, entry, context)
+                                        }
+                                        isLoadingDetail = false
+                                        if (parsed.readSuccess) {
+                                            batteryInfo      = parsed
+                                            folderAccessible = true
+                                        }
+                                    }
+                                }
+                            },
+                            onReadRaw        = { entry ->
+                                val uri = folderUri
+                                if (uri != null) {
+                                    scope.launch {
+                                        rawLogText   = ""
+                                        isLoadingRaw = true
+                                        showLogSheet = false
+                                        selectedLogInfo = BatteryInfo(
+                                            healthPercent = null, cycleCount = null,
+                                            logFileName = entry.name
+                                        )
+                                        navController.navigate(Routes.LOG_RAW)
+                                        val text = withContext(Dispatchers.IO) {
+                                            extractBatterySection(uri, entry, context)
+                                        }
+                                        rawLogText   = text
+                                        isLoadingRaw = false
+                                    }
                                 }
                             }
-                        }
+                        )
                     }
 
                     composable(Routes.WRONG_FOLDER) {
@@ -715,7 +1108,6 @@ class MainActivity : ComponentActivity() {
 
                     composable(Routes.FOLDER_DELETED) {
                         FolderDeletedScreen(onDismiss = {
-                            folderAccessible = false
                             navController.popBackStack()
                         })
                     }
@@ -723,10 +1115,17 @@ class MainActivity : ComponentActivity() {
                     composable(Routes.PERMISSION_LOST) {
                         PermissionLostScreen(
                             onDismiss = {
-                                alreadyHasPerm   = false
-                                folderAccessible = false
                                 navController.popBackStack()
                             }
+                        )
+                    }
+
+                    composable(Routes.LOG_RAW) {
+                        LogRawScreen(
+                            fileName     = selectedLogInfo?.logFileName ?: "",
+                            text         = rawLogText,
+                            isLoading    = isLoadingRaw,
+                            onBack       = { navController.popBackStack() }
                         )
                     }
                 }
@@ -742,46 +1141,24 @@ class MainActivity : ComponentActivity() {
         modifier: Modifier = Modifier,
         content: @Composable BoxScope.() -> Unit
     ) {
-        val green = accentGreenEffective()
-        val state = rememberPullToRefreshState()
+        val isDark    = isSystemInDarkTheme()
+        val blueColor = if (isDark) AccentBlue else AccentBlueLight
+        val state     = rememberPullToRefreshState()
         PullToRefreshBox(
-            isRefreshing = isRefreshing,
+            isRefreshing = false,
             onRefresh    = onRescan,
             state        = state,
             modifier     = modifier,
             indicator    = {
                 PullToRefreshDefaults.Indicator(
-                    state          = state,
-                    isRefreshing   = isRefreshing,
-                    modifier       = Modifier.align(Alignment.TopCenter),
-                    color          = green,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    state        = state,
+                    isRefreshing = false,
+                    modifier     = Modifier.align(Alignment.TopCenter),
+                    color        = blueColor
                 )
             },
-            content = content
+            content      = content
         )
-    }
-
-    @Composable
-    fun ScanningScreen() {
-        var shown by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { shown = true }
-        val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(350), label = "scan_fade")
-        val green = accentGreenEffective(); val tp = textPrimary(); val ts = textSecondary()
-        Box(Modifier.fillMaxSize().alpha(alpha), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                LoadingIndicator(
-                    modifier = Modifier.size(56.dp), color = green,
-                    polygons = LoadingIndicatorDefaults.IndeterminateIndicatorPolygons
-                )
-                Spacer(Modifier.height(28.dp))
-                Text("Scanning log files", color = tp, fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(6.dp))
-                Text("Looking for dumpState_*.log", color = ts, fontSize = 13.sp,
-                    style = MaterialTheme.typography.bodySmall)
-            }
-        }
     }
 
     @Composable
@@ -1024,8 +1401,8 @@ class MainActivity : ComponentActivity() {
                             colors    = ButtonDefaults.buttonColors(
                                 containerColor         = green,
                                 contentColor           = onPrimary,
-                                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                disabledContentColor   = ts
+                                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                disabledContentColor   = MaterialTheme.colorScheme.onSurfaceVariant
                             ),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                         ) {
@@ -1062,19 +1439,6 @@ class MainActivity : ComponentActivity() {
                                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
                                 }
                             }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment     = Alignment.CenterVertically
-                        ) {
-                            Icon(painterResource(R.drawable.refresh), null,
-                                tint = ts.copy(alpha = 0.6f), modifier = Modifier.size(13.dp))
-                            Spacer(Modifier.width(5.dp))
-                            Text("Pull down anywhere to rescan",
-                                color = ts.copy(alpha = 0.6f),
-                                style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -1113,15 +1477,45 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // ─── Helper: relative time from timestamp ─────────────────────────────────
+    private fun relativeTimeFrom(tsMs: Long): String {
+        if (tsMs == 0L) return ""
+        val diff  = System.currentTimeMillis() - tsMs
+        val mins  = diff / 60_000
+        val hours = diff / 3_600_000
+        val days  = diff / 86_400_000
+        return when {
+            mins  < 1  -> "just now"
+            mins  < 60 -> "$mins min${if (mins == 1L) "" else "s"} ago"
+            hours < 24 -> "$hours hour${if (hours == 1L) "" else "s"} ago"
+            days  < 7  -> "$days day${if (days == 1L) "" else "s"} ago"
+            else       -> SimpleDateFormat("MMM dd, yyyy", Locale.US).format(java.util.Date(tsMs))
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun BatteryDashboard(
+    private fun BatteryDashboard(
         info: BatteryInfo,
         folderAccessible: Boolean,
         isRefreshing: Boolean,
+        isLoadingDetail: Boolean,
+        arcAnimatable: Animatable<Float, AnimationVector1D>,
+        gaugeAmplitude: Float,
+        gaugeReplayKey: Int,
         onRescan: () -> Unit,
-        onShowSteps: () -> Unit
+        onShowSteps: () -> Unit,
+        onShowLogs: () -> Unit,
+        showLogSheet: Boolean,
+        allLogEntries: List<DocEntry>,
+        onDismissSheet: () -> Unit,
+        onSelectEntry: (DocEntry) -> Unit,
+        onReadRaw: (DocEntry) -> Unit
     ) {
-        var shown by remember { mutableStateOf(false) }
+        // If we already have real data (e.g. returning from log-raw screen), start fully
+        // visible so there's no re-animation and no gauge wave-jump on back navigation.
+        val alreadyHasData = remember { info.readSuccess }
+        var shown by remember { mutableStateOf(alreadyHasData) }
         LaunchedEffect(Unit) { shown = true }
         val headerAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(400), label = "ha")
         val headerSlide by animateFloatAsState(
@@ -1136,104 +1530,413 @@ class MainActivity : ComponentActivity() {
         val muted = textMuted()
         val ts    = textSecondary()
 
-        RescanPullToRefreshBox(isRefreshing = isRefreshing, onRescan = onRescan, modifier = Modifier.fillMaxSize()) {
-            Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)
+        // Block UI interaction while loading a log detail
+        Box(Modifier.fillMaxSize()) {
+            RescanPullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRescan     = onRescan,
+                modifier     = Modifier.fillMaxSize()
             ) {
-                Spacer(Modifier.height(52.dp))
-                Box(Modifier.fillMaxWidth().alpha(headerAlpha).offset(y = headerSlide.dp)) {
-                    Column(
-                        Modifier.fillMaxWidth().padding(end = 48.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text("My Battery", color = tp,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold))
-                        if (info.logFileName.isNotEmpty() || info.relativeDate.isNotEmpty()) {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)
+                ) {
+                    Spacer(Modifier.height(52.dp))
+                    Box(Modifier.fillMaxWidth().alpha(headerAlpha).offset(y = headerSlide.dp)) {
+                        FilledTonalIconButton(
+                            onClick  = { if (!isLoadingDetail) onShowLogs() },
+                            enabled  = !isLoadingDetail,
+                            modifier = Modifier.align(Alignment.CenterStart).size(40.dp),
+                            colors   = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor   = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Icon(painterResource(R.drawable.arrow_back), "Browse logs",
+                                modifier = Modifier.size(20.dp).rotate(-90f))
+                        }
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 48.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("My Battery", color = tp,
+                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold))
                             Spacer(Modifier.height(4.dp))
-                            if (info.logFileName.isNotEmpty()) {
-                                Row(
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment     = Alignment.CenterVertically
-                                ) {
-                                    Text(info.logFileName, color = muted, textAlign = TextAlign.Center,
+                            if (isLoadingDetail) {
+                                // Same elements, same style — just show "…" in muted so layout
+                                // is pixel-identical to the real content, no jumping.
+                                Text("…", color = muted.copy(alpha = 0.5f),
+                                    style = MaterialTheme.typography.labelSmall)
+                                Text("…", color = muted.copy(alpha = 0.4f),
+                                    style = MaterialTheme.typography.labelSmall)
+                                Spacer(Modifier.height(2.dp))
+                                Text("…", color = muted.copy(alpha = 0.3f),
+                                    style = MaterialTheme.typography.labelSmall)
+                            } else {
+                                if (info.logFileName.isNotEmpty()) {
+                                    val displayFileName = run {
+                                        val n = info.logFileName
+                                        if (n.length <= 30) n
+                                        else n.take(12) + "…" + n.takeLast(14)
+                                    }
+                                    Row(
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment     = Alignment.CenterVertically
+                                    ) {
+                                        Text(displayFileName, color = muted, textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.labelSmall)
+                                        if (!folderAccessible) {
+                                            Spacer(Modifier.width(6.dp))
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = MaterialTheme.colorScheme.surfaceContainerHighest
+                                            ) {
+                                                Text(
+                                                    "cached",
+                                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+                                                    color    = muted,
+                                                    style    = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                if (info.relativeDate.isNotEmpty())
+                                    Text("Log created ${info.relativeDate}", color = muted,
+                                        textAlign = TextAlign.Center,
                                         style = MaterialTheme.typography.labelSmall)
-                                    if (!folderAccessible) {
-                                        Spacer(Modifier.width(6.dp))
-                                        Surface(
-                                            shape = RoundedCornerShape(4.dp),
-                                            color = MaterialTheme.colorScheme.surfaceVariant
+                                if (info.firstUseDateFormatted.isNotEmpty()) {
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "Manufactured ${info.firstUseDateFormatted}",
+                                        color = muted.copy(alpha = 0.7f),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
+                        FilledTonalIconButton(
+                            onClick  = { if (!isLoadingDetail) onShowSteps() },
+                            enabled  = !isLoadingDetail,
+                            modifier = Modifier.align(Alignment.CenterEnd).size(40.dp),
+                            colors   = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor   = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Icon(painterResource(R.drawable.info), "How to update log",
+                                modifier = Modifier.size(18.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(28.dp))
+                    val isNewBattery = !isLoadingDetail && !info.healthUnsupported &&
+                            (info.healthPercent ?: 0) >= 100
+                    Box(Modifier.alpha(gaugeAlpha).offset(y = gaugeSlide.dp)) {
+                        HealthGaugeCard(info, isLoadingDetail, arcAnimatable, gaugeAmplitude, gaugeReplayKey)
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Box(Modifier.alpha(cardAlpha)) { CycleCountCard(info, isLoadingDetail, isNewBattery) }
+                    Spacer(Modifier.height(32.dp))
+                }
+            }
+
+            // Invisible interaction-blocking overlay while loading detail
+            if (isLoadingDetail) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            onClick = { /* swallow all taps */ },
+                            indication = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        )
+                )
+            }
+
+            // ── Log picker tray ───────────────────────────────────────────────
+            if (showLogSheet && !isLoadingDetail) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            onClick           = onDismissSheet,
+                            indication        = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        )
+                )
+            }
+
+            AnimatedVisibility(
+                visible = showLogSheet && !isLoadingDetail,
+                enter   = slideInVertically(
+                    animationSpec = tween(320, easing = FastOutSlowInEasing),
+                    initialOffsetY = { -it }
+                ) + fadeIn(tween(220, easing = FastOutSlowInEasing)),
+                exit    = slideOutVertically(
+                    animationSpec = tween(240, easing = FastOutLinearInEasing),
+                    targetOffsetY = { -it }
+                ) + fadeOut(tween(180, easing = FastOutLinearInEasing))
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            onClick           = { },
+                            indication        = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        ),
+                    color           = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shadowElevation = 8.dp,
+                    shape           = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)
+                ) {
+                    Column(Modifier.fillMaxWidth()) {
+                        // Header row — sits just below the status bar
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .statusBarsPadding()
+                                .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Log Files",
+                                color = MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "${allLogEntries.size}",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                        )
+
+                        val logsScrollState = rememberScrollState()
+                        val logsScope = rememberCoroutineScope()
+                        Box(Modifier.fillMaxWidth().heightIn(max = 200.dp)) {
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 200.dp)
+                                    .verticalScroll(logsScrollState)
+                                    .padding(end = 12.dp, top = 4.dp, bottom = 20.dp)
+                            ) {
+                                if (allLogEntries.isEmpty()) {
+                                    Box(
+                                        Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "No log files found",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                } else {
+                                    allLogEntries.forEachIndexed { idx, entry ->
+                                        val isActive   = entry.name == info.logFileName
+                                        val tsFromName = extractTimestampFromFileName(entry.name)
+                                        // Use lastModified as fallback if filename extraction fails
+                                        val timestamp  = if (tsFromName != 0L) tsFromName else entry.lastModified
+                                        val relTime    = relativeTimeFrom(timestamp)
+                                        val green      = accentGreenEffective()
+                                        val displayName = run {
+                                            val n = entry.name
+                                            if (n.length <= 32) n else n.take(14) + "…" + n.takeLast(14)
+                                        }
+
+                                        Row(
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .padding(start = 20.dp, end = 20.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                "cached",
-                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                                color    = muted,
-                                                style    = MaterialTheme.typography.labelSmall
+                                            // Active indicator
+                                            Box(
+                                                Modifier.size(6.dp).background(
+                                                    if (isActive) green else Color.Transparent,
+                                                    CircleShape
+                                                )
+                                            )
+                                            Spacer(Modifier.width(12.dp))
+
+                                            // Main tap area — disabled for currently active entry
+                                            Surface(
+                                                onClick  = { if (!isActive) onSelectEntry(entry) },
+                                                enabled  = !isActive,
+                                                modifier = Modifier.weight(1f),
+                                                color    = Color.Transparent,
+                                                shape    = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Row(
+                                                    Modifier.padding(vertical = 13.dp, horizontal = 2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    // Filename
+                                                    Text(
+                                                        displayName,
+                                                        color    = if (isActive) green
+                                                        else MaterialTheme.colorScheme.onSurface,
+                                                        style    = MaterialTheme.typography.bodySmall.copy(
+                                                            fontWeight = if (isActive) FontWeight.SemiBold
+                                                            else FontWeight.Normal
+                                                        ),
+                                                        maxLines = 1,
+                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f, fill = false)
+                                                    )
+                                                    // Relative time — always visible beside filename in brackets
+                                                    Spacer(Modifier.width(6.dp))
+                                                    Text(
+                                                        if (relTime.isNotEmpty()) "($relTime)" else "",
+                                                        color = if (isActive) green.copy(alpha = 0.75f)
+                                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        maxLines = 1,
+                                                        softWrap = false
+                                                    )
+                                                }
+                                            }
+
+                                            // Raw-view button
+                                            Surface(
+                                                onClick  = { onReadRaw(entry) },
+                                                modifier = Modifier.size(40.dp),
+                                                shape    = RoundedCornerShape(10.dp),
+                                                color    = MaterialTheme.colorScheme.surfaceContainerHighest
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        painterResource(R.drawable.arrow_forward_ios),
+                                                        contentDescription = "View raw",
+                                                        tint     = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(13.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        if (idx < allLogEntries.lastIndex) {
+                                            HorizontalDivider(
+                                                color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                                modifier = Modifier.padding(start = 38.dp, end = 16.dp)
                                             )
                                         }
                                     }
                                 }
+                            } // end Column (logs list)
+
+                            // ── Draggable scroll indicator ────────────────────────
+                            if (logsScrollState.maxValue > 0) {
+                                val trackHeight = 200.dp
+                                val thumbMinHeight = 32.dp
+                                val density = LocalDensity.current
+                                val trackHeightPx = with(density) { trackHeight.toPx() }
+                                val thumbMinHeightPx = with(density) { thumbMinHeight.toPx() }
+                                val fraction = (logsScrollState.value.toFloat() / logsScrollState.maxValue.toFloat()).coerceIn(0f, 1f)
+                                val thumbHeightPx = (trackHeightPx * 0.35f).coerceAtLeast(thumbMinHeightPx)
+                                val thumbTopPx = fraction * (trackHeightPx - thumbHeightPx)
+                                val isDarkTheme = isSystemInDarkTheme()
+                                val thumbColor = if (isDarkTheme) Color(0xFF4A6080) else Color(0xFFB0C0D8)
+                                val trackColor = if (isDarkTheme) Color(0xFF1A2740) else Color(0xFFE2E8F0)
+
+                                Box(
+                                    Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .padding(end = 4.dp)
+                                        .width(4.dp)
+                                        .height(trackHeight)
+                                        .background(trackColor, RoundedCornerShape(2.dp))
+                                        .pointerInput(Unit) {
+                                            detectDragGestures { change, dragAmount ->
+                                                change.consume()
+                                                val draggableRange = trackHeightPx - thumbHeightPx
+                                                if (draggableRange > 0f) {
+                                                    val delta = (dragAmount.y / draggableRange) * logsScrollState.maxValue.toFloat()
+                                                    logsScope.launch { logsScrollState.scrollBy(delta) }
+                                                }
+                                            }
+                                        }
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .offset(y = with(density) { thumbTopPx.toDp() })
+                                            .width(4.dp)
+                                            .height(with(density) { thumbHeightPx.toDp() })
+                                            .background(thumbColor, RoundedCornerShape(2.dp))
+                                    )
+                                }
                             }
-                            if (info.relativeDate.isNotEmpty())
-                                Text("Log created ${info.relativeDate}", color = muted,
-                                    textAlign = TextAlign.Center,
-                                    style = MaterialTheme.typography.labelSmall)
-                        }
-                        if (info.firstUseDateFormatted.isNotEmpty()) {
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                "Manufactured ${info.firstUseDateFormatted}",
-                                color = muted.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                    }
-                    FilledTonalIconButton(
-                        onClick  = onShowSteps,
-                        modifier = Modifier.align(Alignment.CenterEnd).size(40.dp),
-                        colors   = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor   = ts
-                        )
-                    ) {
-                        Icon(painterResource(R.drawable.info), "How to update log",
-                            modifier = Modifier.size(18.dp))
+                        } // end Box (scroll indicator container)
                     }
                 }
-                Spacer(Modifier.height(28.dp))
-                Box(Modifier.alpha(gaugeAlpha).offset(y = gaugeSlide.dp)) { HealthGaugeCard(info) }
-                Spacer(Modifier.height(16.dp))
-                Box(Modifier.alpha(cardAlpha)) { CycleCountCard(info) }
-                Spacer(Modifier.height(32.dp))
             }
         }
     }
 
     @Composable
-    fun HealthGaugeCard(info: BatteryInfo) {
+    fun HealthGaugeCard(
+        info: BatteryInfo,
+        isLoadingDetail: Boolean = false,
+        arcAnimatable: Animatable<Float, AnimationVector1D>,
+        amplitude: Float,
+        gaugeReplayKey: Int = 0
+    ) {
         val isUnsupported = info.healthUnsupported
-        val targetPct = if (isUnsupported) 100f else (info.healthPercent ?: 0).coerceIn(0, 100).toFloat()
+        val targetPct = if (isUnsupported) 100f
+        else (info.healthPercent ?: 0).coerceIn(0, 100).toFloat()
 
-        var animStarted by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { delay(100); animStarted = true }
-        val animPct by animateFloatAsState(
-            targetValue   = if (animStarted) targetPct else 100f,
-            animationSpec = tween(1400, easing = FastOutSlowInEasing),
-            label         = "health_arc"
-        )
+        LaunchedEffect(isLoadingDetail, targetPct, gaugeReplayKey) {
+            if (isLoadingDetail) {
+                // Animate to full circle from wherever we currently are — no snap, no wave jump
+                arcAnimatable.animateTo(
+                    targetValue   = 1f,
+                    animationSpec = tween(400, easing = FastOutSlowInEasing)
+                )
+            } else {
+                // Only snap to 0 on first load (when we're already at 0 or very close)
+                // For subsequent log loads the arc is at 1f (full); animate directly to target
+                // so the wave position is preserved with no jump.
+                if (arcAnimatable.value < 0.02f) {
+                    // Fresh start — already near 0, just animate up
+                } else {
+                    // Returning from loading-full state; snap only if target < current
+                    // so the arc contracts smoothly rather than jumping backwards.
+                    arcAnimatable.snapTo(0f)
+                }
+                arcAnimatable.animateTo(
+                    targetValue   = targetPct / 100f,
+                    animationSpec = tween(1400, easing = FastOutSlowInEasing)
+                )
+            }
+        }
 
-        val currentColor = when {
-            isUnsupported -> MaterialTheme.colorScheme.outlineVariant
-            animPct >= 80 -> AccentGreen
-            animPct >= 60 -> AccentOrange
-            else          -> AccentRed
+        val animPct = arcAnimatable.value * 100f
+
+        // isLoadingDetail must come before isUnsupported so switching away from an
+        // unsupported log immediately shows loading state rather than staying gray.
+        // pillMsg is the status pill text — same conditions, one place.
+        val isNewBattery = !isLoadingDetail && !isUnsupported && targetPct >= 100f
+        data class GS(val color: Color, val label: String, val pill: String)
+        val gs = when {
+            isLoadingDetail && animPct >= 99.9f -> GS(gaugeBlue(),   "Loading",     "Scanning log…")
+            isLoadingDetail                     -> GS(gaugeGreen(),  "Loading",     "Scanning log…")
+            isUnsupported                       -> GS(gaugeGray(),   "Unsupported", "Device unsupported")
+            animPct >= 99.9f                    -> GS(gaugeBlue(),   "New",         "The phone is as fresh as it gets")
+            animPct >= 80f                      -> GS(gaugeGreen(),  "Good",        "Battery is in great condition")
+            animPct >= 60f                      -> GS(gaugeOrange(), "Fair",        "Battery capacity is declining")
+            else                                -> GS(gaugeRed(),    "Poor",        "Battery replacement recommended")
         }
-        val currentLabel = when {
-            isUnsupported -> "Unsupported"
-            animPct >= 80 -> "Good"
-            animPct >= 60 -> "Fair"
-            else          -> "Poor"
-        }
+        // Animate color so the green→blue crossover at animPct≥99.9 is a smooth transition
+        // rather than an instant parameter change. An instantaneous fillColor change causes
+        // CircularWavyProgressIndicator to restart its wave phase internally.
+        val gaugeColor   by animateColorAsState(gs.color, tween(300), label = "gauge_color")
+        val currentLabel = gs.label
+        val pillMsg      = gs.pill
 
         val muted  = textMuted()
         val border = cardBorderColor()
@@ -1249,46 +1952,56 @@ class MainActivity : ComponentActivity() {
                 Modifier.fillMaxWidth().padding(28.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
                         "BATTERY HEALTH",
                         color = muted,
                         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp)
                     )
-                    if (!isUnsupported && info.healthSource == "bsoh") {
-                        Spacer(Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer
-                        ) {
-                            Text(
-                                "BSOH",
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                color    = MaterialTheme.colorScheme.onSecondaryContainer,
-                                style    = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp)
-                            )
-                        }
+                    // BSOH pill — Box+background instead of Surface so no M3 min-height is enforced.
+                    // Zero vertical padding: the text itself defines the height, matching bare labelSmall.
+                    if (!isLoadingDetail && !isUnsupported && info.healthSource == "bsoh") {
+                        Text(
+                            "BSOH",
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .background(
+                                    MaterialTheme.colorScheme.secondaryContainer,
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 5.dp),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.8.sp)
+                        )
                     }
                 }
 
                 Spacer(Modifier.height(24.dp))
 
                 Box(Modifier.size(190.dp), contentAlignment = Alignment.Center) {
-                    ArcGauge(
-                        percent    = animPct / 100f,
+                    // Single ArcGaugePulsing — progress and amplitude both change via
+                    // animateFloatAsState so the underlying CircularWavyProgressIndicator
+                    // is NEVER recreated, keeping waves perfectly continuous.
+                    ArcGaugePulsing(
+                        progress   = animPct / 100f,
+                        amplitude  = amplitude,
                         trackColor = border,
-                        fillColor  = currentColor,
+                        fillColor  = gaugeColor,
                         modifier   = Modifier.fillMaxSize()
                     )
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            if (isUnsupported) "—" else "${animPct.toInt()}%",
-                            color = currentColor,
+                            if (isLoadingDetail || isUnsupported) "—"
+                            else "${animPct.toInt()}%",
+                            color = gaugeColor,
                             style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
                             currentLabel,
-                            color = currentColor.copy(alpha = 0.75f),
+                            color = gaugeColor.copy(alpha = 0.85f),
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
                         )
                     }
@@ -1296,62 +2009,43 @@ class MainActivity : ComponentActivity() {
 
                 Spacer(Modifier.height(16.dp))
 
-                if (isUnsupported) {
-                    Surface(
-                        shape  = RoundedCornerShape(10.dp),
-                        color  = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                    ) {
-                        Row(
-                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment     = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(painterResource(R.drawable.info), null,
-                                tint = ts, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "Device unsupported",
-                                color = ts,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                    }
-                } else {
-                    val (descBg, descText, descMsg) = when {
-                        animPct >= 80 -> Triple(AccentGreen.copy(alpha  = 0.1f), AccentGreen,  "Battery is in great condition")
-                        animPct >= 60 -> Triple(AccentOrange.copy(alpha = 0.1f), AccentOrange, "Battery capacity is declining")
-                        else          -> Triple(AccentRed.copy(alpha    = 0.1f), AccentRed,    "Battery replacement recommended")
-                    }
-                    Surface(
-                        shape  = RoundedCornerShape(10.dp),
-                        color  = descBg,
-                        border = BorderStroke(1.dp, descText.copy(alpha = 0.25f))
-                    ) {
-                        Text(
-                            descMsg,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            color    = descText,
-                            style    = MaterialTheme.typography.labelMedium
-                        )
-                    }
+                // Status pill — unified: uses gaugeColor + pillMsg from the single when block above.
+                // Always rendered (no if/else on loading) so card height is stable.
+                Surface(
+                    shape  = RoundedCornerShape(10.dp),
+                    color  = gaugeColor.copy(alpha = if (isUnsupported) 0.0f else 0.1f),
+                    border = BorderStroke(1.dp, gaugeColor.copy(alpha = if (isUnsupported) 0.4f else 0.25f))
+                ) {
+                    Text(
+                        pillMsg,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        color    = gaugeColor,
+                        style    = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
         }
     }
 
     @Composable
-    fun ArcGauge(percent: Float, trackColor: Color, fillColor: Color, modifier: Modifier = Modifier) {
+    fun ArcGaugePulsing(
+        progress: Float = 1f,
+        amplitude: Float,
+        trackColor: Color,
+        fillColor: Color,
+        modifier: Modifier = Modifier
+    ) {
+        // fillColor is now kept stable (blue) throughout all loading and fill transitions,
+        // so no color cross-fade is needed — pass it directly to avoid any internal reset.
         Box(modifier = modifier.scale(scaleX = -1f, scaleY = 1f), contentAlignment = Alignment.Center) {
             CircularWavyProgressIndicator(
-                progress    = { percent },
+                progress    = { progress },
                 modifier    = Modifier.fillMaxSize(),
                 color       = fillColor,
                 trackColor  = trackColor,
                 stroke      = WavyProgressIndicatorDefaults.circularIndicatorStroke,
                 trackStroke = WavyProgressIndicatorDefaults.circularTrackStroke,
-                gapSize     = WavyProgressIndicatorDefaults.CircularIndicatorTrackGapSize,
-                amplitude   = { 1.0f },
+                amplitude   = { amplitude },
                 wavelength  = WavyProgressIndicatorDefaults.CircularWavelength,
                 waveSpeed   = WavyProgressIndicatorDefaults.CircularWavelength
             )
@@ -1359,7 +2053,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun CycleCountCard(info: BatteryInfo) {
+    fun CycleCountCard(info: BatteryInfo, isLoadingDetail: Boolean = false, isNewBattery: Boolean = false) {
         val cycles        = info.cycleCount ?: 0
         val isUnsupported = info.cycleCount == null
         val maxBar = 800f
@@ -1367,11 +2061,11 @@ class MainActivity : ComponentActivity() {
         var animStarted by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { delay(200); animStarted = true }
         val animatedCycles by animateFloatAsState(
-            if (animStarted) cycles.toFloat() else 0f,
+            if (animStarted && !isLoadingDetail) cycles.toFloat() else 0f,
             tween(1200, easing = FastOutSlowInEasing), label = "cycles_count"
         )
         val animatedBarFraction by animateFloatAsState(
-            if (animStarted) (cycles.toFloat() / maxBar).coerceIn(0f, 1f) else 0f,
+            if (animStarted && !isLoadingDetail) (cycles.toFloat() / maxBar).coerceIn(0f, 1f) else 0f,
             tween(1200, easing = FastOutSlowInEasing), label = "cycles_bar"
         )
 
@@ -1382,9 +2076,12 @@ class MainActivity : ComponentActivity() {
         val border  = cardBorderColor()
 
         val (statusColor, statusText) = when {
-            cycles < 300 -> Pair(AccentGreen,  "Low wear")
-            cycles < 500 -> Pair(AccentOrange, "Moderate wear")
-            else         -> Pair(AccentRed,    "High wear")
+            isLoadingDetail              -> Pair(gaugeBlue(),   "Loading")
+            isNewBattery                 -> Pair(gaugeBlue(),   "No wear")
+            isUnsupported                -> Pair(MaterialTheme.colorScheme.outlineVariant, "Unavailable")
+            cycles < 300                 -> Pair(gaugeGreen(),  "Low wear")
+            cycles < 500                 -> Pair(gaugeOrange(), "Moderate wear")
+            else                         -> Pair(gaugeRed(),    "High wear")
         }
 
         ElevatedCard(
@@ -1397,13 +2094,13 @@ class MainActivity : ComponentActivity() {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape    = RoundedCornerShape(12.dp),
-                        color    = if (isUnsupported) MaterialTheme.colorScheme.surfaceVariant
+                        color    = if (isUnsupported && !isLoadingDetail) MaterialTheme.colorScheme.surfaceVariant
                         else statusColor.copy(alpha = 0.15f),
                         modifier = Modifier.size(44.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(painterResource(R.drawable.refresh), null,
-                                tint     = if (isUnsupported) MaterialTheme.colorScheme.outlineVariant
+                                tint     = if (isUnsupported && !isLoadingDetail) MaterialTheme.colorScheme.outlineVariant
                                 else statusColor,
                                 modifier = Modifier.size(22.dp))
                         }
@@ -1414,7 +2111,7 @@ class MainActivity : ComponentActivity() {
                             color = muted,
                             style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp))
                         Text(
-                            if (isUnsupported) "Not reported by device" else "Full charge equivalents",
+                            if (isUnsupported && !isLoadingDetail) "Not reported by device" else "Full charge equivalents",
                             color = onSurfV,
                             style = MaterialTheme.typography.bodySmall
                         )
@@ -1430,97 +2127,310 @@ class MainActivity : ComponentActivity() {
                 ) {
                     Column {
                         Text(
-                            if (isUnsupported) "—" else animatedCycles.toInt().toString(),
-                            color = if (isUnsupported) MaterialTheme.colorScheme.outlineVariant
+                            if (isUnsupported && !isLoadingDetail) "—"
+                            else if (isLoadingDetail) "—"
+                            else animatedCycles.toInt().toString(),
+                            color = if (isUnsupported && !isLoadingDetail) MaterialTheme.colorScheme.outlineVariant
                             else statusColor,
                             style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
                             "cycles",
-                            color = if (isUnsupported) MaterialTheme.colorScheme.outlineVariant
+                            color = if (isUnsupported && !isLoadingDetail) MaterialTheme.colorScheme.outlineVariant
                             else onSurfV,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
 
-                    if (!isUnsupported) {
-                        Surface(
-                            shape  = RoundedCornerShape(12.dp),
-                            color  = statusColor.copy(alpha = 0.12f),
-                            border = BorderStroke(1.5.dp, statusColor.copy(alpha = 0.35f))
+                    Surface(
+                        shape  = RoundedCornerShape(12.dp),
+                        color  = statusColor.copy(alpha = 0.12f),
+                        border = BorderStroke(1.5.dp, statusColor.copy(alpha = 0.35f))
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(Modifier.size(8.dp).background(statusColor, CircleShape))
-                                Spacer(Modifier.width(8.dp))
-                                Text(statusText, color = statusColor,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                            }
-                        }
-                    } else {
-                        Surface(
-                            shape  = RoundedCornerShape(12.dp),
-                            color  = MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                        ) {
-                            Row(
-                                Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(Modifier.size(8.dp)
-                                    .background(MaterialTheme.colorScheme.outlineVariant, CircleShape))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Unsupported", color = ts,
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
-                            }
+                            Box(Modifier.size(8.dp).background(statusColor, CircleShape))
+                            Spacer(Modifier.width(8.dp))
+                            Text(statusText, color = statusColor,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold))
                         }
                     }
                 }
 
-                if (!isUnsupported) {
-                    Spacer(Modifier.height(18.dp))
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .background(border, RoundedCornerShape(3.dp))
-                    ) {
+                // Bar always shown — grayed at zero when unsupported or loading
+                Spacer(Modifier.height(18.dp))
+                Box(
+                    Modifier.fillMaxWidth().height(6.dp)
+                        .background(border, RoundedCornerShape(3.dp))
+                ) {
+                    if (!isUnsupported) {
                         Box(
-                            Modifier
-                                .fillMaxWidth(animatedBarFraction)
-                                .fillMaxHeight()
+                            Modifier.fillMaxWidth(animatedBarFraction).fillMaxHeight()
                                 .background(
                                     Brush.horizontalGradient(listOf(statusColor.copy(alpha = 0.7f), statusColor)),
                                     RoundedCornerShape(3.dp)
                                 )
                         )
                     }
-                    Spacer(Modifier.height(6.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("0", color = muted, style = MaterialTheme.typography.labelSmall)
-                        Text("300", color = if (cycles < 300) muted else AccentGreen,
-                            style = MaterialTheme.typography.labelSmall)
-                        Text("500", color = if (cycles < 500) muted else AccentOrange,
-                            style = MaterialTheme.typography.labelSmall)
-                        Text("800+", color = if (cycles < 800) muted else AccentRed,
-                            style = MaterialTheme.typography.labelSmall)
-                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("0", color = muted, style = MaterialTheme.typography.labelSmall)
+                    Text("300", color = if (!isUnsupported && cycles >= 300) gaugeGreen() else muted,
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("500", color = if (!isUnsupported && cycles >= 500) gaugeOrange() else muted,
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("800+", color = if (!isUnsupported && cycles >= 800) gaugeRed() else muted,
+                        style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
 
-                    Spacer(Modifier.height(14.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(painterResource(R.drawable.info), null,
-                            tint     = onSurfV,
-                            modifier = Modifier.size(14.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "1 cycle is charging from 0% to 100%",
-                            color = onSurfV,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+    // ─── Log raw screen ───────────────────────────────────────────────────────
+
+    /**
+     * Builds an AnnotatedString from raw log text, coloring values (after ": " or "= ")
+     * more visibly than the key text.
+     */
+    @Composable
+    private fun buildColorizedLogText(
+        text: String,
+        keyColor: Color,
+        valueColor: Color,
+        sectionColor: Color
+    ): AnnotatedString = buildAnnotatedString {
+        val sectionHeaderRegex = Regex("""^━━━ .+ ━━━$""")
+        val kvRegex            = Regex("""^(\s*)(.+?)(\s*[:=]\s*)(.+)$""")
+
+        text.lines().forEach { line ->
+            when {
+                sectionHeaderRegex.matches(line.trim()) -> {
+                    withStyle(SpanStyle(color = sectionColor, fontWeight = FontWeight.SemiBold)) {
+                        append(line)
                     }
                 }
+                line.trim().isEmpty() -> append(line)
+                else -> {
+                    val match = kvRegex.matchEntire(line)
+                    if (match != null) {
+                        // indent
+                        withStyle(SpanStyle(color = keyColor)) { append(match.groupValues[1]) }
+                        // key
+                        withStyle(SpanStyle(color = keyColor)) { append(match.groupValues[2]) }
+                        // separator (: or =)
+                        withStyle(SpanStyle(color = keyColor.copy(alpha = 0.6f))) { append(match.groupValues[3]) }
+                        // value — brighter / more visible
+                        withStyle(SpanStyle(color = valueColor, fontWeight = FontWeight.Medium)) {
+                            append(match.groupValues[4])
+                        }
+                    } else {
+                        withStyle(SpanStyle(color = keyColor)) { append(line) }
+                    }
+                }
+            }
+            append('\n')
+        }
+    }
+
+    @Composable
+    fun LogRawScreen(
+        fileName: String,
+        text: String,
+        isLoading: Boolean,
+        onBack: () -> Unit
+    ) {
+        val tp     = textPrimary()
+        val ts     = textSecondary()
+        val muted  = textMuted()
+        val border = cardBorderColor()
+        val green  = accentGreenEffective()
+        val isDark = isSystemInDarkTheme()
+
+        // Key text: muted; Value text: clearly visible
+        val keyColor     = if (isDark) Color(0xFF7A9CC0) else Color(0xFF4A6080)
+        val valueColor   = if (isDark) Color(0xFFF0F4FF) else Color(0xFF0F172A)
+        val sectionColor = if (isDark) Color(0xFF6BB5FF) else Color(0xFF1565C0)
+
+        var backHandled by remember { mutableStateOf(false) }
+        BackHandler(enabled = true) {
+            if (!backHandled) { backHandled = true; onBack() }
+        }
+
+        var shown by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { shown = true }
+        val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(300), label = "raw_fade")
+
+        // Search state
+        var searchQuery by remember { mutableStateOf("") }
+        var searchActive by remember { mutableStateOf(false) }
+        val searchFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+        LaunchedEffect(searchActive) {
+            if (searchActive) searchFocusRequester.requestFocus()
+        }
+
+        // Highlight color for matches
+        val highlightBg = if (isDark) Color(0xFF3A5030) else Color(0xFFD4EDD4)
+        val highlightFg = if (isDark) Color(0xFF90EE90) else Color(0xFF1B5E20)
+
+        Column(Modifier.fillMaxSize().alpha(alpha)) {
+            // ── Top bar ──────────────────────────────────────────────────────
+            Row(
+                Modifier.fillMaxWidth()
+                    .padding(start = 4.dp, end = 4.dp)
+                    .padding(top = 52.dp)
+                    .height(56.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { if (!backHandled) { backHandled = true; onBack() } }) {
+                    Icon(painterResource(R.drawable.arrow_back), "Back", tint = ts)
+                }
+                if (searchActive) {
+                    // Inline search field
+                    androidx.compose.material3.TextField(
+                        value         = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier      = Modifier.weight(1f).focusRequester(searchFocusRequester),
+                        placeholder   = { Text("Search…", style = MaterialTheme.typography.bodyMedium) },
+                        singleLine    = true,
+                        colors        = TextFieldDefaults.colors(
+                            focusedContainerColor   = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            focusedIndicatorColor   = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                            color      = tp
+                        )
+                    )
+                    // Yellow occurrence count badge
+                    if (searchQuery.isNotBlank()) {
+                        val matchCount = remember(searchQuery, text) {
+                            if (searchQuery.isBlank()) 0
+                            else {
+                                var count = 0
+                                var idx = 0
+                                val lower = text.lowercase()
+                                val lowerQ = searchQuery.lowercase()
+                                while (true) {
+                                    val found = lower.indexOf(lowerQ, idx)
+                                    if (found < 0) break
+                                    count++
+                                    idx = found + lowerQ.length
+                                }
+                                count
+                            }
+                        }
+                        Box(
+                            Modifier
+                                .background(Color(0xFFFFCC00), RoundedCornerShape(10.dp))
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text  = "$matchCount",
+                                color = Color(0xFF1A1200),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    IconButton(onClick = { searchQuery = ""; searchActive = false }) {
+                        Icon(painterResource(R.drawable.close), "Clear search", tint = ts)
+                    }
+                } else {
+                    Column(Modifier.weight(1f)) {
+                        Text("Battery Lines", color = tp,
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
+                        if (fileName.isNotEmpty()) {
+                            Text(fileName, color = muted,
+                                style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                        }
+                    }
+                    IconButton(onClick = { searchActive = true }) {
+                        Icon(painterResource(R.drawable.search), "Search", tint = ts)
+                    }
+                }
+            }
+            HorizontalDivider(color = border, thickness = 0.5.dp)
+
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        LoadingIndicator(
+                            modifier = Modifier.size(48.dp),
+                            color    = green,
+                            polygons = LoadingIndicatorDefaults.IndeterminateIndicatorPolygons
+                        )
+                        Spacer(Modifier.height(14.dp))
+                        Text("Extracting battery lines…", color = ts,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            } else {
+                // Selectable, colorized log text (with optional search highlighting)
+                SelectionContainer {
+                    Column(
+                        Modifier.fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                    ) {
+                        val colorizedText = if (searchQuery.isNotBlank()) {
+                            buildSearchHighlightedText(
+                                base        = buildColorizedLogText(text, keyColor, valueColor, sectionColor),
+                                query       = searchQuery,
+                                highlightBg = highlightBg,
+                                highlightFg = highlightFg
+                            )
+                        } else {
+                            buildColorizedLogText(text, keyColor, valueColor, sectionColor)
+                        }
+                        Text(
+                            text  = colorizedText,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace,
+                                fontSize   = 11.sp,
+                                lineHeight = 17.sp
+                            )
+                        )
+                        Spacer(Modifier.height(32.dp))
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Takes a pre-colorized AnnotatedString and overlays highlight spans for all
+     * case-insensitive occurrences of [query].
+     */
+    @Composable
+    private fun buildSearchHighlightedText(
+        base: AnnotatedString,
+        query: String,
+        highlightBg: Color,
+        highlightFg: Color
+    ): AnnotatedString {
+        if (query.isBlank()) return base
+        val rawText  = base.text
+        val lowerRaw = rawText.lowercase()
+        val lowerQ   = query.lowercase()
+        if (!lowerRaw.contains(lowerQ)) return base
+
+        return buildAnnotatedString {
+            append(base)
+            var searchStart = 0
+            while (true) {
+                val idx = lowerRaw.indexOf(lowerQ, searchStart)
+                if (idx < 0) break
+                addStyle(
+                    SpanStyle(background = highlightBg, color = highlightFg),
+                    start = idx,
+                    end   = idx + query.length
+                )
+                searchStart = idx + query.length
             }
         }
     }
