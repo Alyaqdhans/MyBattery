@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollBy
@@ -271,7 +272,7 @@ private fun BatteryDashboard(
                 }
                 Spacer(Modifier.height(16.dp))
                 Box(Modifier.alpha(cardAlpha)) {
-                    CycleCountCard(effectiveInfo, isLoadingDetail, isNewBattery)
+                    CycleCountCard(effectiveInfo, isLoadingDetail, isNewBattery, gaugeReplayKey)
                 }
                 Spacer(Modifier.height(32.dp))
             }
@@ -307,9 +308,9 @@ private fun BatteryDashboard(
         AnimatedVisibility(
             visible = showLogSheet && !isLoadingDetail,
             enter   = slideInVertically(tween(320, easing = FastOutSlowInEasing)) { -it } +
-                      fadeIn(tween(220, easing = FastOutSlowInEasing)),
+                    fadeIn(tween(220, easing = FastOutSlowInEasing)),
             exit    = slideOutVertically(tween(240, easing = FastOutLinearInEasing)) { -it } +
-                      fadeOut(tween(180, easing = FastOutLinearInEasing))
+                    fadeOut(tween(180, easing = FastOutLinearInEasing))
         ) {
             LogSheet(
                 allLogEntries   = allLogEntries,
@@ -504,7 +505,7 @@ private fun LogEntry(
                 Text(
                     if (relTime.isNotEmpty()) "($relTime)" else "",
                     color    = if (isActive) green.copy(alpha = 0.75f)
-                               else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                     style    = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     softWrap = false
@@ -544,6 +545,6 @@ private fun relativeTimeFrom(tsMs: Long): String {
         hours < 24 -> "$hours hour${if (hours == 1L) "" else "s"} ago"
         days  < 7  -> "$days day${if (days == 1L) "" else "s"} ago"
         else       -> java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.US)
-                          .format(java.util.Date(tsMs))
+            .format(java.util.Date(tsMs))
     }
 }

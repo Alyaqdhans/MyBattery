@@ -8,8 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.*import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -169,23 +168,30 @@ fun ArcGaugePulsing(
 fun CycleCountCard(
     info: BatteryInfo,
     isLoadingDetail: Boolean = false,
-    isNewBattery: Boolean = false
+    isNewBattery: Boolean = false,
+    gaugeReplayKey: Int = 0
 ) {
     val cycles        = info.cycleCount ?: 0
     val isUnsupported = info.cycleCount == null
     val maxBar        = 500f
 
-    var animStarted by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { delay(200); animStarted = true }
+    val cyclesAnimatable = remember { Animatable(0f) }
 
-    val animatedCycles by animateFloatAsState(
-        if (animStarted && !isLoadingDetail) cycles.toFloat() else 0f,
-        tween(1200, easing = FastOutSlowInEasing), label = "cycles_count"
-    )
-    val animatedBarFraction by animateFloatAsState(
-        if (animStarted && !isLoadingDetail) (cycles.toFloat() / maxBar).coerceIn(0f, 1f) else 0f,
-        tween(1200, easing = FastOutSlowInEasing), label = "cycles_bar"
-    )
+    LaunchedEffect(gaugeReplayKey, isLoadingDetail, cycles) {
+        if (isLoadingDetail) {
+            cyclesAnimatable.snapTo(0f)
+        } else {
+            cyclesAnimatable.snapTo(0f)
+            delay(200)
+            cyclesAnimatable.animateTo(
+                targetValue   = cycles.toFloat(),
+                animationSpec = tween(1200, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
+    val animatedCycles       = cyclesAnimatable.value
+    val animatedBarFraction  = (cyclesAnimatable.value / maxBar).coerceIn(0f, 1f)
 
     val muted   = textMuted()
     val onSurfV = MaterialTheme.colorScheme.onSurfaceVariant
