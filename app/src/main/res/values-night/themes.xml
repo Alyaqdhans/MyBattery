@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     res/values-night/themes.xml
-    Overrides colorBackground for the dark theme so the launch window
-    background is #0A0E1A before Compose even starts drawing.
+    Dark-mode override: forces the launch window background to #0A0E1A
+    before Compose starts drawing. No AppCompat dependency.
 -->
 <resources>
 

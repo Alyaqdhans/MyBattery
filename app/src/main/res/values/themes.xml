@@ -3,8 +3,8 @@
 
     <!--
         Base theme — used for the launch window background only.
-        We use ?android:attr/colorBackground so the OS paints the
-        correct colour (light or dark) before Compose draws anything.
+        Inherits from the platform Material theme (no AppCompat required).
+        Compose draws all UI; this theme only controls the pre-draw window chrome.
     -->
     <style name="Theme.MyBattery" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">?android:attr/colorBackground</item>

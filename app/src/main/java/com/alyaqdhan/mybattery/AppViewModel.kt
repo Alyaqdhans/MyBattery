@@ -1,0 +1,374 @@
+package com.alyaqdhan.mybattery
+
+import android.app.Application
+import android.content.Context
+import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.core.content.edit
+import androidx.core.net.toUri
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class AppViewModel(app: Application) : AndroidViewModel(app) {
+
+    private val context: Context = app.applicationContext
+    private val prefs = context.getSharedPreferences("battery_prefs", Context.MODE_PRIVATE)
+
+    // ── Shared app state ──────────────────────────────────────────────────────
+    var folderUri        by mutableStateOf<Uri?>(null)           ; private set
+    var alreadyHasPerm   by mutableStateOf(false)                ; private set
+    var batteryInfo      by mutableStateOf<BatteryInfo?>(null)   ; private set
+    var folderAccessible by mutableStateOf(true)                 ; private set
+    var hasEverScanned   by mutableStateOf(false)                ; private set
+    var isRefreshing     by mutableStateOf(false)                ; private set
+    var isLoadingDetail  by mutableStateOf(false)                ; private set
+
+    // Log sheet
+    var allLogEntries  by mutableStateOf<List<DocEntry>>(emptyList()) ; private set
+    var showLogSheet   by mutableStateOf(false)                       ; private set
+
+    // Raw log screen
+    var rawLogText          by mutableStateOf("")    ; private set
+    var isLoadingRaw        by mutableStateOf(false) ; private set
+    var selectedLogFileName by mutableStateOf("")    ; private set
+
+    // Error overlay
+    var errorDialog by mutableStateOf<ErrorDialog?>(null) ; private set
+
+    // Gauge animation signals
+    var gaugeAmplitude by mutableStateOf(1f)   ; private set
+    var gaugeReplayKey by mutableIntStateOf(0) ; private set
+
+    // ── Initialization ────────────────────────────────────────────────────────
+
+    /**
+     * Called once from [MainActivity] on creation.
+     * Returns true if a saved URI exists (show Dashboard),
+     * false if first-run (caller should open SetupActivity).
+     */
+    fun initialize(): Boolean {
+        val savedUriStr = prefs.getString("folder_uri", null)
+        val savedUri    = savedUriStr?.toUri()
+        folderUri       = savedUri
+
+        if (savedUri == null) return false
+
+        viewModelScope.launch {
+            if (!BatteryParser.hasPersistedPermission(context, savedUri)) {
+                val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+                if (cached != null) {
+                    batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
+                }
+                alreadyHasPerm   = false
+                folderAccessible = false
+                allLogEntries    = emptyList()
+                isLoadingDetail  = false
+                errorDialog      = ErrorDialog.PermissionLost
+                return@launch
+            }
+
+            alreadyHasPerm  = true
+            isLoadingDetail = true
+
+            val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+            if (cached != null) {
+                batteryInfo      = cached
+                folderAccessible = true
+                hasEverScanned   = true
+
+                val latestEntry = withContext(Dispatchers.IO) {
+                    BatteryParser.findLatestLogEntry(savedUri, context)
+                }
+                if (latestEntry == null) {
+                    alreadyHasPerm   = false
+                    folderAccessible = false
+                    isLoadingDetail  = false
+                    gaugeReplayKey++
+                    errorDialog = ErrorDialog.FolderDeleted
+                    return@launch
+                }
+                if (latestEntry.name != cached.logFileName) {
+                    val liveInfo = withContext(Dispatchers.IO) {
+                        BatteryParser.parseLatestLog(savedUri, context, prefs)
+                    }
+                    if (liveInfo.readSuccess) batteryInfo = liveInfo
+                }
+                isLoadingDetail = false
+
+            } else {
+                val latestEntry = withContext(Dispatchers.IO) {
+                    BatteryParser.findLatestLogEntry(savedUri, context)
+                }
+                if (latestEntry == null) {
+                    isLoadingDetail  = false
+                    alreadyHasPerm   = false
+                    folderAccessible = false
+                    errorDialog = ErrorDialog.FolderDeleted
+                    return@launch
+                }
+                val info = withContext(Dispatchers.IO) {
+                    BatteryParser.smartScan(savedUri, context, prefs)
+                }
+                isLoadingDetail  = false
+                batteryInfo      = info
+                folderAccessible = true
+                if (info.readSuccess) {
+                    hasEverScanned = true
+                } else {
+                    errorDialog = ErrorDialog.WrongFolder(info.errorMessage)
+                }
+            }
+        }
+        return true
+    }
+
+    // ── Folder picker result ──────────────────────────────────────────────────
+
+    /**
+     * Persist the picked URI, then invoke [onResult] immediately once the folder is
+     * validated (log files found).  The actual parse/scan continues in the background
+     * while the Dashboard is shown with isLoadingDetail = true.
+     *
+     *  - `onResult(true)`  → folder valid, navigate to Dashboard now
+     *  - `onResult(false)` → wrong/empty folder, stay on Setup (errorDialog is set)
+     */
+    fun onFolderPicked(uri: Uri, onResult: (success: Boolean) -> Unit) {
+        try {
+            context.contentResolver.takePersistableUriPermission(
+                uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: SecurityException) {}
+
+        val isNewFolder = uri.toString() != prefs.getString("folder_uri", null)
+        if (isNewFolder) BatteryCache.clearBatteryInfoCache(prefs)
+
+        folderUri        = uri
+        alreadyHasPerm   = true
+        folderAccessible = true
+        allLogEntries    = emptyList()
+        batteryInfo      = null
+        isLoadingDetail  = true
+
+        viewModelScope.launch {
+            // First check the folder actually contains a dumpstate log
+            val latestEntry = withContext(Dispatchers.IO) {
+                BatteryParser.findLatestLogEntry(uri, context)
+            }
+
+            if (latestEntry == null) {
+                // Nothing found — treat as wrong folder, do NOT persist the URI
+                isLoadingDetail  = false
+                folderAccessible = false
+                alreadyHasPerm   = false
+                folderUri        = prefs.getString("folder_uri", null)?.toUri()
+                errorDialog      = ErrorDialog.WrongFolder(
+                    "No dumpstate log files found in the selected folder. " +
+                            "Please navigate to /Device/log/ and try again."
+                )
+                onResult(false)
+                return@launch
+            }
+
+            // Folder looks correct — persist the URI and navigate to Dashboard immediately.
+            // The scan continues in the background; the Dashboard shows isLoadingDetail.
+            prefs.edit { putString("folder_uri", uri.toString()) }
+            onResult(true)
+
+            val info = withContext(Dispatchers.IO) {
+                BatteryParser.smartScan(uri, context, prefs)
+            }
+            isLoadingDetail = false
+
+            if (info.readSuccess) {
+                batteryInfo    = info
+                hasEverScanned = true
+            } else {
+                // Scan failed — show error on the Dashboard
+                folderAccessible = false
+                alreadyHasPerm   = false
+                folderUri        = prefs.getString("folder_uri", null)?.toUri()
+                errorDialog      = ErrorDialog.WrongFolder(info.errorMessage)
+            }
+        }
+    }
+
+    // ── Rescan (pull-to-refresh) ──────────────────────────────────────────────
+
+    fun rescan() {
+        val uri = folderUri ?: return
+        if (isRefreshing) return
+
+        viewModelScope.launch {
+            isRefreshing = true
+
+            if (!BatteryParser.hasPersistedPermission(context, uri)) {
+                isRefreshing  = false
+                showLogSheet  = false
+                allLogEntries = emptyList()
+                val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+                if (cached != null) {
+                    batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
+                }
+                errorDialog = ErrorDialog.PermissionLost
+                return@launch
+            }
+
+            val latestEntry = withContext(Dispatchers.IO) {
+                BatteryParser.findLatestLogEntry(uri, context)
+            }
+            if (latestEntry == null) {
+                isRefreshing   = false
+                alreadyHasPerm = false
+                showLogSheet   = false
+                val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+                if (cached != null) {
+                    batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
+                }
+                errorDialog = ErrorDialog.FolderDeleted
+                return@launch
+            }
+
+            val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+            if (cached != null && cached.logFileName == latestEntry.name) {
+                alreadyHasPerm   = true
+                folderAccessible = true
+                isRefreshing     = false
+                return@launch
+            }
+
+            isLoadingDetail = true
+            val info = withContext(Dispatchers.IO) {
+                BatteryParser.parseLatestLog(uri, context, prefs)
+            }
+            isRefreshing    = false
+            isLoadingDetail = false
+            if (info.readSuccess) {
+                batteryInfo      = info
+                alreadyHasPerm   = true
+                folderAccessible = true
+                hasEverScanned   = true
+            } else {
+                errorDialog = ErrorDialog.WrongFolder(info.errorMessage)
+            }
+        }
+    }
+
+    // ── Log sheet ─────────────────────────────────────────────────────────────
+
+    fun openLogSheet() {
+        val uri = folderUri
+        if (uri != null && BatteryParser.hasPersistedPermission(context, uri)) {
+            viewModelScope.launch {
+                allLogEntries = withContext(Dispatchers.IO) { BatteryParser.listAllLogs(uri, context) }
+                showLogSheet  = true
+            }
+        } else {
+            showLogSheet = true
+        }
+    }
+
+    fun dismissLogSheet() { showLogSheet = false }
+
+    fun selectLogEntry(entry: DocEntry) {
+        val uri = folderUri ?: return
+        viewModelScope.launch {
+            isLoadingDetail = true
+            showLogSheet    = false
+            startGaugePulse()
+            val parsed = withContext(Dispatchers.IO) { BatteryParser.parseLogEntry(uri, entry, context) }
+            isLoadingDetail = false
+            if (parsed.readSuccess) {
+                batteryInfo      = parsed
+                folderAccessible = true
+            }
+        }
+    }
+
+    /**
+     * Loads the raw log text for [entry].
+     * Navigation to [LogRawActivity] is handled by the calling Activity.
+     */
+    fun openRawLog(entry: DocEntry) {
+        val uri = folderUri ?: return
+        viewModelScope.launch {
+            rawLogText          = ""
+            isLoadingRaw        = true
+            showLogSheet        = false
+            selectedLogFileName = entry.name
+            val text = withContext(Dispatchers.IO) {
+                BatteryParser.extractBatterySection(uri, entry, context)
+            }
+            rawLogText   = text
+            isLoadingRaw = false
+        }
+    }
+
+    // ── Error dialog ──────────────────────────────────────────────────────────
+
+    fun dismissErrorDialog() { errorDialog = null }
+
+    // ── Resume check ─────────────────────────────────────────────────────────
+
+    fun checkOnResume() {
+        val uri = folderUri ?: return
+        viewModelScope.launch {
+            val hasPerm = withContext(Dispatchers.IO) {
+                BatteryParser.hasPersistedPermission(context, uri)
+            }
+            if (!hasPerm && alreadyHasPerm) {
+                alreadyHasPerm   = false
+                folderAccessible = false
+                allLogEntries    = emptyList()
+                showLogSheet     = false
+                val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+                if (cached != null) {
+                    batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
+                }
+                errorDialog = ErrorDialog.PermissionLost
+            } else if (hasPerm) {
+                val exists = withContext(Dispatchers.IO) {
+                    BatteryParser.findLatestLogEntry(uri, context) != null
+                }
+                if (!exists && folderAccessible) {
+                    folderAccessible = false
+                    allLogEntries    = emptyList()
+                    showLogSheet     = false
+                    val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+                    if (cached != null) {
+                        batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
+                    }
+                    errorDialog = ErrorDialog.FolderDeleted
+                } else if (exists && !folderAccessible && alreadyHasPerm) {
+                    folderAccessible = true
+                }
+            }
+        }
+    }
+
+    // ── Gauge pulse ───────────────────────────────────────────────────────────
+
+    private var pulseJob: kotlinx.coroutines.Job? = null
+
+    fun startGaugePulse() {
+        pulseJob?.cancel()
+        pulseJob = viewModelScope.launch {
+            while (true) {
+                delay(900L)
+                gaugeAmplitude = if (gaugeAmplitude < 0.5f) 1f else 0f
+            }
+        }
+    }
+
+    fun stopGaugePulse() {
+        pulseJob?.cancel()
+        pulseJob       = null
+        gaugeAmplitude = 1f
+    }
+}
