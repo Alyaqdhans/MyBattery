@@ -293,7 +293,7 @@ object BatteryParser {
                 if (t.contains("mSavedBatteryUsage:")) {
                     usageRaw = t.substringAfter("mSavedBatteryUsage:").trim()
                     val raw  = extractValueOrNull(t, "mSavedBatteryUsage:")
-                    usage    = if (raw != null) raw / 1000 else null
+                    usage    = if (raw != null) raw / 100 else null
                 }
                 if (firstUseDateMs == 0L) {
                     llbRegex.find(t)?.let { m ->

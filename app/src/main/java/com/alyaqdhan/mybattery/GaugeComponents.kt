@@ -173,7 +173,7 @@ fun CycleCountCard(
 ) {
     val cycles        = info.cycleCount ?: 0
     val isUnsupported = info.cycleCount == null
-    val maxBar        = 500f
+    val maxBar        = 5000f
 
     val cyclesAnimatable = remember { Animatable(0f) }
 
@@ -197,14 +197,15 @@ fun CycleCountCard(
     val onSurfV = MaterialTheme.colorScheme.onSurfaceVariant
     val border  = cardBorderColor()
 
-    val (statusColor, statusText) = when {
-        isLoadingDetail              -> Pair(gaugeBlue(),   "Loading")
-        isNewBattery                 -> Pair(gaugeBlue(),   "No wear")
-        isUnsupported                -> Pair(MaterialTheme.colorScheme.outlineVariant, "Unavailable")
-        cycles < 200                 -> Pair(gaugeGreen(),  "Low wear")
-        cycles < 300                 -> Pair(gaugeOrange(), "Moderate wear")
-        else                         -> Pair(gaugeRed(),    "High wear")
+    val (statusColorTarget, statusText) = when {
+        isLoadingDetail                  -> Pair(gaugeBlue(),   "Loading")
+        isNewBattery                     -> Pair(gaugeBlue(),   "No wear")
+        isUnsupported                    -> Pair(MaterialTheme.colorScheme.outlineVariant, "Unavailable")
+        animatedCycles < 2000            -> Pair(gaugeGreen(),  "Low wear")
+        animatedCycles < 3000            -> Pair(gaugeOrange(), "Moderate wear")
+        else                             -> Pair(gaugeRed(),    "High wear")
     }
+    val statusColor by animateColorAsState(statusColorTarget, tween(300), label = "cycle_color")
 
     ElevatedCard(
         modifier  = Modifier.fillMaxWidth(),
@@ -311,12 +312,12 @@ fun CycleCountCard(
             }
             Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("0",    color = muted, style = MaterialTheme.typography.labelSmall)
-                Text("200",  color = if (!isUnsupported && cycles >= 200) gaugeGreen()  else muted,
+                Text("0",     color = muted, style = MaterialTheme.typography.labelSmall)
+                Text("2000",  color = if (!isUnsupported && animatedCycles >= 2000) gaugeGreen()  else muted,
                     style = MaterialTheme.typography.labelSmall)
-                Text("300",  color = if (!isUnsupported && cycles >= 300) gaugeOrange() else muted,
+                Text("3000",  color = if (!isUnsupported && animatedCycles >= 3000) gaugeOrange() else muted,
                     style = MaterialTheme.typography.labelSmall)
-                Text("500+", color = if (!isUnsupported && cycles >= 500) gaugeRed()    else muted,
+                Text("5000+", color = if (!isUnsupported && animatedCycles >= 5000) gaugeRed()    else muted,
                     style = MaterialTheme.typography.labelSmall)
             }
         }
