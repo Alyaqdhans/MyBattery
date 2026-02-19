@@ -77,7 +77,7 @@ object BatteryParser {
                 it.mime != dirMime && it.name.endsWith(".log", ignoreCase = true)
             }.toMutableList()
         }
-        return allLogs.maxByOrNull { it.name }
+        return allLogs.maxByOrNull { extractTimestampFromFileName(it.name).takeIf { ts -> ts != 0L } ?: it.lastModified }
     }
 
     fun listAllLogs(folderUri: Uri, context: Context): List<DocEntry> {
@@ -97,7 +97,7 @@ object BatteryParser {
                 it.mime != dirMime && it.name.endsWith(".log", ignoreCase = true)
             }.toMutableList()
         }
-        return allLogs.sortedByDescending { it.name }
+        return allLogs.sortedByDescending { extractTimestampFromFileName(it.name).takeIf { ts -> ts != 0L } ?: it.lastModified }
     }
 
     // ── Log parsing ───────────────────────────────────────────────────────────

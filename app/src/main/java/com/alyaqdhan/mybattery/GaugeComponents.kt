@@ -173,7 +173,7 @@ fun CycleCountCard(
 ) {
     val cycles        = info.cycleCount ?: 0
     val isUnsupported = info.cycleCount == null
-    val maxBar        = 800f
+    val maxBar        = 500f
 
     var animStarted by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { delay(200); animStarted = true }
@@ -195,8 +195,8 @@ fun CycleCountCard(
         isLoadingDetail              -> Pair(gaugeBlue(),   "Loading")
         isNewBattery                 -> Pair(gaugeBlue(),   "No wear")
         isUnsupported                -> Pair(MaterialTheme.colorScheme.outlineVariant, "Unavailable")
-        cycles < 300                 -> Pair(gaugeGreen(),  "Low wear")
-        cycles < 500                 -> Pair(gaugeOrange(), "Moderate wear")
+        cycles < 200                 -> Pair(gaugeGreen(),  "Low wear")
+        cycles < 300                 -> Pair(gaugeOrange(), "Moderate wear")
         else                         -> Pair(gaugeRed(),    "High wear")
     }
 
@@ -211,15 +211,15 @@ fun CycleCountCard(
                 Surface(
                     shape    = RoundedCornerShape(12.dp),
                     color    = if (isUnsupported && !isLoadingDetail) MaterialTheme.colorScheme.surfaceVariant
-                               else statusColor.copy(alpha = 0.15f),
+                    else statusColor.copy(alpha = 0.15f),
                     modifier = Modifier.size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             painterResource(R.drawable.refresh), null,
                             tint     = if (isUnsupported && !isLoadingDetail)
-                                           MaterialTheme.colorScheme.outlineVariant
-                                       else statusColor,
+                                MaterialTheme.colorScheme.outlineVariant
+                            else statusColor,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -255,15 +255,15 @@ fun CycleCountCard(
                             else                              -> animatedCycles.toInt().toString()
                         },
                         color = if (isUnsupported && !isLoadingDetail)
-                                    MaterialTheme.colorScheme.outlineVariant
-                                else statusColor,
+                            MaterialTheme.colorScheme.outlineVariant
+                        else statusColor,
                         style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
                         "cycles",
                         color = if (isUnsupported && !isLoadingDetail)
-                                    MaterialTheme.colorScheme.outlineVariant
-                                else onSurfV,
+                            MaterialTheme.colorScheme.outlineVariant
+                        else onSurfV,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -306,15 +306,13 @@ fun CycleCountCard(
             Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("0",    color = muted, style = MaterialTheme.typography.labelSmall)
-                Text("300",  color = if (!isUnsupported && cycles >= 300) gaugeGreen()  else muted,
+                Text("200",  color = if (!isUnsupported && cycles >= 200) gaugeGreen()  else muted,
                     style = MaterialTheme.typography.labelSmall)
-                Text("500",  color = if (!isUnsupported && cycles >= 500) gaugeOrange() else muted,
+                Text("300",  color = if (!isUnsupported && cycles >= 300) gaugeOrange() else muted,
                     style = MaterialTheme.typography.labelSmall)
-                Text("800+", color = if (!isUnsupported && cycles >= 800) gaugeRed()    else muted,
+                Text("500+", color = if (!isUnsupported && cycles >= 500) gaugeRed()    else muted,
                     style = MaterialTheme.typography.labelSmall)
             }
         }
     }
 }
-
-

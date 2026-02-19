@@ -87,7 +87,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     BatteryParser.findLatestLogEntry(savedUri, context)
                 }
                 if (latestEntry == null) {
-                    alreadyHasPerm   = false
                     folderAccessible = false
                     isLoadingDetail  = false
                     gaugeReplayKey++
@@ -108,7 +107,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 if (latestEntry == null) {
                     isLoadingDetail  = false
-                    alreadyHasPerm   = false
                     folderAccessible = false
                     errorDialog = ErrorDialog.FolderDeleted
                     return@launch
@@ -224,9 +222,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 BatteryParser.findLatestLogEntry(uri, context)
             }
             if (latestEntry == null) {
-                isRefreshing   = false
-                alreadyHasPerm = false
-                showLogSheet   = false
+                isRefreshing     = false
+                folderAccessible = false
+                showLogSheet     = false
                 val cached = BatteryCache.loadCachedBatteryInfo(prefs)
                 if (cached != null) {
                     batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
@@ -235,14 +233,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
 
+            // Compare cache to latest file — if they match, nothing changed on disk → just animate.
+            // If they differ, a new file appeared → parse it.
+            // If the user is viewing an older manually-selected file and refreshes, the cache
+            // still reflects the true latest, so no unnecessary re-parse happens.
             val cached = BatteryCache.loadCachedBatteryInfo(prefs)
-            if (cached != null && cached.logFileName == latestEntry.name) {
+
+            if (cached?.logFileName == latestEntry.name) {
+                // Files unchanged — just replay the gauge animation
                 alreadyHasPerm   = true
                 folderAccessible = true
                 isRefreshing     = false
+                gaugeReplayKey++
                 return@launch
             }
 
+            // New file appeared, or loaded file was deleted — parse latest
             isLoadingDetail = true
             val info = withContext(Dispatchers.IO) {
                 BatteryParser.parseLatestLog(uri, context, prefs)
@@ -254,6 +260,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 alreadyHasPerm   = true
                 folderAccessible = true
                 hasEverScanned   = true
+                gaugeReplayKey++
             } else {
                 errorDialog = ErrorDialog.WrongFolder(info.errorMessage)
             }
@@ -333,20 +340,54 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 errorDialog = ErrorDialog.PermissionLost
             } else if (hasPerm) {
-                val exists = withContext(Dispatchers.IO) {
-                    BatteryParser.findLatestLogEntry(uri, context) != null
+                val latestEntry = withContext(Dispatchers.IO) {
+                    BatteryParser.findLatestLogEntry(uri, context)
                 }
-                if (!exists && folderAccessible) {
-                    folderAccessible = false
-                    allLogEntries    = emptyList()
-                    showLogSheet     = false
-                    val cached = BatteryCache.loadCachedBatteryInfo(prefs)
-                    if (cached != null) {
-                        batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
+                if (latestEntry == null) {
+                    if (folderAccessible) {
+                        folderAccessible = false
+                        allLogEntries    = emptyList()
+                        showLogSheet     = false
+                        val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+                        if (cached != null) {
+                            batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
+                        }
+                        errorDialog = ErrorDialog.FolderDeleted
                     }
-                    errorDialog = ErrorDialog.FolderDeleted
-                } else if (exists && !folderAccessible && alreadyHasPerm) {
-                    folderAccessible = true
+                } else {
+                    // Folder is accessible — restore state if it was previously inaccessible
+                    if (!folderAccessible) folderAccessible = true
+
+                    // If the currently loaded file no longer exists in the folder,
+                    // silently fall back to the latest without showing an error.
+                    // Don't interfere if user intentionally loaded an older file that still exists.
+                    val loadedName = batteryInfo?.logFileName?.takeIf { it.isNotEmpty() }
+                    if (loadedName != null && loadedName != latestEntry.name) {
+                        val loadedStillExists = withContext(Dispatchers.IO) {
+                            BatteryParser.listAllLogs(uri, context).any { it.name == loadedName }
+                        }
+                        if (!loadedStillExists) {
+                            val cached = BatteryCache.loadCachedBatteryInfo(prefs)
+                            if (cached?.logFileName == latestEntry.name) {
+                                // Cache already holds the latest — use it directly
+                                batteryInfo    = cached
+                                hasEverScanned = true
+                                gaugeReplayKey++
+                            } else {
+                                // Need to parse the latest file
+                                isLoadingDetail = true
+                                val info = withContext(Dispatchers.IO) {
+                                    BatteryParser.parseLatestLog(uri, context, prefs)
+                                }
+                                isLoadingDetail = false
+                                if (info.readSuccess) {
+                                    batteryInfo    = info
+                                    hasEverScanned = true
+                                    gaugeReplayKey++
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
