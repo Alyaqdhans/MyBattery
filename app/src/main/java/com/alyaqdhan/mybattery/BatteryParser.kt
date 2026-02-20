@@ -42,7 +42,7 @@ object BatteryParser {
         val afterPrefix = noExt.substring("dumpstate_".length) // e.g. "SM-G9766HE_20231015_123045"
 
         // Find the first occurrence of: one letter followed by one-or-more digits
-        val modelMatch = Regex("""[A-Za-z]\d+""").find(afterPrefix)
+        val modelMatch = Regex("""[A-Za-z]\d+[A-Za-z]?""").find(afterPrefix)
         val model = modelMatch?.value ?: afterPrefix.substringBefore("_")
 
         return "dumpstate_$model"
