@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import androidx.core.net.toUri
 
 class SetupActivity : ComponentActivity() {
 
@@ -101,7 +102,13 @@ class SetupActivity : ComponentActivity() {
                             viewModel      = viewModel,
                             showBackButton = showBack,
                             onPickFolder   = { folderPicker.launch(null) },
-                            onBack         = { finish() }
+                            onBack         = { finish() },
+                            onDialCode     = {
+                                startActivity(
+                                    Intent(Intent.ACTION_DIAL,
+                                        "tel:*%239900".toUri())
+                                )
+                            }
                         )
                     }
                 }
@@ -117,17 +124,20 @@ private fun SetupScreen(
     viewModel: AppViewModel,
     showBackButton: Boolean,
     onPickFolder: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDialCode: () -> Unit
 ) {
     val steps = listOf(
-        SetupStep(painterResource(R.drawable.phone),      "Dial *#9900#",
-            "Open the Phone app, type *#9900# and call. Samsung's SysDump menu opens."),
+        SetupStep(painterResource(R.drawable.phone), "Open Samsung SysDump",
+            "Tap the button on the right and type # to open the menu.",
+            actionLabel = "*#9900#",
+            onAction    = onDialCode),
         SetupStep(painterResource(R.drawable.play_arrow), "Run dumpstate/logcat",
-            "Pick option 2 — \"Run dumpstate/logcat\" and wait, it takes a while to create."),
+            "Tap \"Run dumpstate/logcat\" and wait a couple of minutes to finish."),
         SetupStep(painterResource(R.drawable.check),      "Copy to sdcard",
-            "Tap \"Copy to sdcard\". Logs are saved to /Device/log/."),
+            "Tap \"Copy to sdcard(include CP Ramdump)\". Logs will be saved to Internal Storage."),
         SetupStep(painterResource(R.drawable.search),     "Grant folder permission",
-            "Tap the button below, navigate to /Device/log/, and allow reading the folder.")
+            "Tap the button below, navigate to folder /log/, and allow reading the folder.")
     )
 
     var shown by remember { mutableStateOf(false) }

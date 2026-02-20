@@ -43,17 +43,14 @@ fun WrongFolderDialog(errorMessage: String, onDismiss: () -> Unit) {
         ErrorIconRow(icon = painterResource(R.drawable.warning), tint = accentColor)
         Spacer(Modifier.height(16.dp))
         Text(
-            if (isNotFound) "Wrong Folder Selected" else "Log File Not Readable",
+            "Wrong Folder Selected",
             color     = textPrimary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            if (isNotFound)
-                "No dumpState_*.log file was found.\n\nSelect the correct log folder after running dumpstate from *#9900#."
-            else
-                "The log file was found but could not be read.\n\nGenerate a fresh log and select the folder again.",
+                "No dumpState_*.log file was found.\nSelect the correct log folder after running dumpstate from *#9900#.",
             color     = textSecondary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp)
@@ -78,7 +75,7 @@ fun FolderDeletedDialog(onDismiss: () -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "The log folder has been deleted or is no longer accessible.\n\nYou'll need to generate a new log file.",
+            "The log folder has been deleted or is no longer accessible.\nYou'll need to generate a new log file.",
             color     = textSecondary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp)
@@ -103,7 +100,7 @@ fun PermissionLostDialog(onDismiss: () -> Unit) {
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "Folder permission was revoked in Android settings.\n\nGrant permission again to refresh your battery info.",
+            "Folder permission was revoked in Android settings.\nGrant permission again to refresh your battery info.",
             color     = textSecondary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp)

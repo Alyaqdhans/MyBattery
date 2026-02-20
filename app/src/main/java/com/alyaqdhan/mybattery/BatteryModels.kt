@@ -38,7 +38,7 @@ data class BatteryInfo(
     val firstUseDateFormatted: String
         get() {
             if (firstUseDateMs == 0L) return ""
-            return SimpleDateFormat("MMM yyyy", Locale.US)
+            return SimpleDateFormat("d/M/yyyy", Locale.US)
                 .format(java.util.Date(firstUseDateMs))
         }
 }

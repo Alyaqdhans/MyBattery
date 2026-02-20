@@ -18,6 +18,36 @@ object BatteryParser {
         name.startsWith("dumpState_", ignoreCase = true) &&
                 name.endsWith(".log", ignoreCase = true)
 
+    /**
+     * Returns a compact display name for a dumpstate log file.
+     *
+     * Strategy:
+     * - Strip the `.log` extension and any trailing timestamp (`_YYYYMMDD_HHMMSS` or similar
+     *   12-digit sequences with underscores).
+     * - For the model segment (e.g. `G9766HE`), keep only the first run of
+     *   *one letter + digits* — stopping when a second letter is encountered.
+     *   Example: `dumpstate_SM-G9766HE_20231015_123045.log` → `dumpstate_G9766`
+     *
+     * Falls back to the raw file name (without extension) if no model pattern is found.
+     */
+    fun truncateLogDisplayName(name: String): String {
+        // Strip .log extension
+        val noExt = if (name.endsWith(".log", ignoreCase = true)) name.dropLast(4) else name
+
+        if (!noExt.startsWith("dumpstate_", ignoreCase = true)) {
+            // Not a dumpstate file — just remove trailing timestamp digits
+            return noExt.replace(Regex("""_\d{6,}$"""), "")
+        }
+
+        val afterPrefix = noExt.substring("dumpstate_".length) // e.g. "SM-G9766HE_20231015_123045"
+
+        // Find the first occurrence of: one letter followed by one-or-more digits
+        val modelMatch = Regex("""[A-Za-z]\d+""").find(afterPrefix)
+        val model = modelMatch?.value ?: afterPrefix.substringBefore("_")
+
+        return "dumpstate_$model"
+    }
+
     fun hasPersistedPermission(context: Context, uri: Uri): Boolean {
         val uriStr = uri.toString()
         if (context.contentResolver.persistedUriPermissions
@@ -72,11 +102,6 @@ object BatteryParser {
                     allLogs.addAll(listChildren(folderUri, child.id, context).filter { isDumpStateLog(it.name) })
             }
         }
-        if (allLogs.isEmpty()) {
-            allLogs = topLevel.filter {
-                it.mime != dirMime && it.name.endsWith(".log", ignoreCase = true)
-            }.toMutableList()
-        }
         return allLogs.maxByOrNull { extractTimestampFromFileName(it.name).takeIf { ts -> ts != 0L } ?: it.lastModified }
     }
 
@@ -91,11 +116,6 @@ object BatteryParser {
                 if (child.mime == dirMime)
                     allLogs.addAll(listChildren(folderUri, child.id, context).filter { isDumpStateLog(it.name) })
             }
-        }
-        if (allLogs.isEmpty()) {
-            allLogs = topLevel.filter {
-                it.mime != dirMime && it.name.endsWith(".log", ignoreCase = true)
-            }.toMutableList()
         }
         return allLogs.sortedByDescending { extractTimestampFromFileName(it.name).takeIf { ts -> ts != 0L } ?: it.lastModified }
     }

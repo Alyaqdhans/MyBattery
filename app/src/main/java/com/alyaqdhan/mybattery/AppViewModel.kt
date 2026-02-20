@@ -60,17 +60,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
         if (savedUri == null) return false
 
+        // Synchronous persisted-permission check (safe on main thread — in-memory list).
+        // If permission was revoked since last launch, treat it as first-run and send
+        // the user back to SetupActivity so they must re-grant access.
+        val hasSyncPerm = context.contentResolver.persistedUriPermissions
+            .any { it.uri.toString() == savedUri.toString() && it.isReadPermission }
+        if (!hasSyncPerm) return false
+
         viewModelScope.launch {
             if (!BatteryParser.hasPersistedPermission(context, savedUri)) {
-                val cached = BatteryCache.loadCachedBatteryInfo(prefs)
-                if (cached != null) {
-                    batteryInfo = cached; hasEverScanned = true; gaugeReplayKey++
-                }
+                // Shouldn't normally reach here (handled synchronously above),
+                // but guard against race conditions.
                 alreadyHasPerm   = false
                 folderAccessible = false
                 allLogEntries    = emptyList()
                 isLoadingDetail  = false
-                errorDialog      = ErrorDialog.PermissionLost
                 return@launch
             }
 

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import kotlinx.coroutines.launch
 
@@ -204,9 +205,7 @@ private fun BatteryDashboard(
                                 style = MaterialTheme.typography.labelSmall)
                         } else {
                             if (effectiveInfo.logFileName.isNotEmpty()) {
-                                val displayName = effectiveInfo.logFileName.let { n ->
-                                    if (n.length <= 30) n else n.take(12) + "…" + n.takeLast(14)
-                                }
+                                val displayName = BatteryParser.truncateLogDisplayName(effectiveInfo.logFileName)
                                 Row(
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment     = Alignment.CenterVertically
@@ -216,16 +215,19 @@ private fun BatteryDashboard(
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                     if (!folderAccessible) {
-                                        Spacer(Modifier.width(6.dp))
+                                        Spacer(Modifier.width(4.dp))
                                         Surface(
-                                            shape = RoundedCornerShape(4.dp),
+                                            shape = RoundedCornerShape(3.dp),
                                             color = MaterialTheme.colorScheme.surfaceContainerHighest
                                         ) {
                                             Text(
                                                 "cached",
-                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-                                                color    = muted,
-                                                style    = MaterialTheme.typography.labelSmall
+                                                modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
+                                                color    = muted.copy(alpha = 0.7f),
+                                                style    = MaterialTheme.typography.labelSmall.copy(
+                                                    fontSize = 8.sp,
+                                                    letterSpacing = 0.sp
+                                                )
                                             )
                                         }
                                     }
@@ -240,7 +242,7 @@ private fun BatteryDashboard(
                             if (effectiveInfo.firstUseDateFormatted.isNotEmpty()) {
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    "Manufactured ${effectiveInfo.firstUseDateFormatted}",
+                                    "First use ${effectiveInfo.firstUseDateFormatted}",
                                     color = muted.copy(alpha = 0.7f), textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -272,7 +274,15 @@ private fun BatteryDashboard(
                 }
                 Spacer(Modifier.height(16.dp))
                 Box(Modifier.alpha(cardAlpha)) {
-                    CycleCountCard(effectiveInfo, isLoadingDetail, isNewBattery, gaugeReplayKey)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                        CycleCountCard(effectiveInfo, isLoadingDetail, isNewBattery, gaugeReplayKey)
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "v${BuildConfig.VERSION_NAME}",
+                            color = muted.copy(alpha = 0.45f),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
                 Spacer(Modifier.height(32.dp))
             }
@@ -469,9 +479,7 @@ private fun LogEntry(
     onReadRaw: (DocEntry) -> Unit
 ) {
     val green       = accentGreenEffective()
-    val displayName = entry.name.let { n ->
-        if (n.length <= 32) n else n.take(14) + "…" + n.takeLast(14)
-    }
+    val displayName = BatteryParser.truncateLogDisplayName(entry.name)
 
     Row(
         Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp),

@@ -16,7 +16,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "2.0.1"
+        versionName = "2.0.3"
     }
 
     buildTypes {
@@ -42,12 +42,14 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+
     // activity-compose brings ComponentActivity + registerForActivityResult + BackHandler
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))

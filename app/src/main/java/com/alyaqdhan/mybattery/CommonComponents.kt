@@ -4,7 +4,9 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
@@ -44,7 +46,13 @@ fun RescanPullToRefreshBox(
     )
 }
 
-data class SetupStep(val icon: Painter, val title: String, val desc: String)
+data class SetupStep(
+    val icon: Painter,
+    val title: String,
+    val desc: String,
+    val actionLabel: String? = null,
+    val onAction: (() -> Unit)? = null
+)
 
 @Composable
 fun SetupStepRow(number: Int, step: SetupStep) {
@@ -66,7 +74,7 @@ fun SetupStepRow(number: Int, step: SetupStep) {
             )
         }
         Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f).padding(top = 4.dp, bottom = 8.dp)) {
+        Column(Modifier.weight(1f).padding(top = 4.dp, bottom = 8.dp, end = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     step.icon, null,
@@ -81,7 +89,33 @@ fun SetupStepRow(number: Int, step: SetupStep) {
                 )
             }
             Spacer(Modifier.height(4.dp))
-            Text(step.desc, color = ts, style = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    step.desc,
+                    color    = ts,
+                    style    = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp),
+                    modifier = Modifier.weight(1f)
+                )
+                if (step.actionLabel != null && step.onAction != null) {
+                    Surface(
+                        onClick = step.onAction,
+                        shape   = RoundedCornerShape(6.dp),
+                        color   = green.copy(alpha = 0.12f),
+                        border  = BorderStroke(1.dp, green.copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            step.actionLabel,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            color    = green,
+                            style    = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            softWrap = false
+                        )
+                    }
+                }
+            }
         }
     }
 }
