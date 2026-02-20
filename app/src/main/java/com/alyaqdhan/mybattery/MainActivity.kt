@@ -239,10 +239,10 @@ private fun BatteryDashboard(
                                     color = muted, textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.labelSmall
                                 )
-                            if (effectiveInfo.firstUseDateFormatted.isNotEmpty()) {
+                            if (effectiveInfo.batteryDateFormatted.isNotEmpty()) {
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    "First use ${effectiveInfo.firstUseDateFormatted}",
+                                    "Installed on ${effectiveInfo.batteryDateFormatted}",
                                     color = muted.copy(alpha = 0.7f), textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.labelSmall
                                 )

@@ -14,7 +14,7 @@ object BatteryCache {
             putString ("cache_health_source",      info.healthSource)
             putBoolean("cache_health_unsupported", info.healthUnsupported)
             putInt    ("cache_cycle_count",         info.cycleCount ?: -1)
-            putLong   ("cache_first_use_date_ms",  info.firstUseDateMs)
+            putLong   ("cache_battery_date_ms",  info.batteryDateMs)
         }
     }
 
@@ -26,7 +26,7 @@ object BatteryCache {
             healthSource      = prefs.getString("cache_health_source", "") ?: "",
             healthUnsupported = prefs.getBoolean("cache_health_unsupported", false),
             cycleCount        = prefs.getInt("cache_cycle_count", -1).takeIf { it >= 0 },
-            firstUseDateMs    = prefs.getLong("cache_first_use_date_ms", 0L),
+            batteryDateMs    = prefs.getLong("cache_battery_date_ms", 0L),
             logFileName       = fileName,
             logTimestampMs    = prefs.getLong("cache_log_timestamp_ms", 0L),
             readSuccess       = true
@@ -41,7 +41,7 @@ object BatteryCache {
             remove("cache_health_source")
             remove("cache_health_unsupported")
             remove("cache_cycle_count")
-            remove("cache_first_use_date_ms")
+            remove("cache_battery_date_ms")
         }
     }
 }

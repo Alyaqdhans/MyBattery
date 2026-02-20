@@ -12,7 +12,7 @@ data class BatteryInfo(
     val bsohRaw: String = "",
     val usageRaw: String = "",
     val llbType: String = "",
-    val firstUseDateMs: Long = 0L,
+    val batteryDateMs: Long = 0L,
     val logFileName: String = "",
     val logTimestampMs: Long = 0L,
     val readSuccess: Boolean = false,
@@ -35,11 +35,11 @@ data class BatteryInfo(
             }
         }
 
-    val firstUseDateFormatted: String
+    val batteryDateFormatted: String
         get() {
-            if (firstUseDateMs == 0L) return ""
+            if (batteryDateMs == 0L) return ""
             return SimpleDateFormat("d/M/yyyy", Locale.US)
-                .format(java.util.Date(firstUseDateMs))
+                .format(java.util.Date(batteryDateMs))
         }
 }
 

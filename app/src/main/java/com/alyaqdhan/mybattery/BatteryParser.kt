@@ -288,7 +288,7 @@ object BatteryParser {
         var usage: Int?    = null
         var usageRaw       = ""
         var llbType        = ""
-        var firstUseDateMs = 0L
+        var batteryDateMs = 0L
         var logTimestampMs = 0L
 
         val fullDateTimeRegex    = Regex("""(?:==\s*dumpstate:|dumpstate:|Build time:)\s*(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})""")
@@ -315,10 +315,10 @@ object BatteryParser {
                     val raw  = extractValueOrNull(t, "mSavedBatteryUsage:")
                     usage    = if (raw != null) raw / 100 else null
                 }
-                if (firstUseDateMs == 0L) {
+                if (batteryDateMs == 0L) {
                     llbRegex.find(t)?.let { m ->
                         llbType        = m.groupValues[1].uppercase()
-                        firstUseDateMs = try {
+                        batteryDateMs = try {
                             compactDateFmt.parse(m.groupValues[2])?.time ?: 0L
                         } catch (_: Exception) { 0L }
                     }
@@ -342,7 +342,7 @@ object BatteryParser {
         }
 
         val readSuccess = resolvedHealth != null || bsoh != null || usage != null ||
-                firstUseDateMs != 0L || asocSeen
+                batteryDateMs != 0L || asocSeen
 
         return BatteryInfo(
             healthPercent     = resolvedHealth,
@@ -353,7 +353,7 @@ object BatteryParser {
             bsohRaw           = bsohRaw,
             usageRaw          = usageRaw,
             llbType           = llbType,
-            firstUseDateMs    = firstUseDateMs,
+            batteryDateMs    = batteryDateMs,
             logFileName       = fileName,
             logTimestampMs    = logTimestampMs,
             readSuccess       = readSuccess
