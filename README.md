@@ -17,8 +17,8 @@ MyBattery reads Samsung dumpstate battery logs (`dumpState_*.log`) and extracts 
 
 - `mSavedBatteryUsage`
   Battery cycle count (number of charge cycles).
-  The raw value is stored as cycles × 1000.
-  Example: `157000` means about 157 cycles.
+  The raw value is stored as cycles × 100.
+  Example: `157000` means about 1570 cycles.
 
 - `LLB CAL` or `LLB MAN`
   Battery manufacturing / assembly date.
