@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -51,9 +53,11 @@ data class SetupStep(
     val title: String,
     val desc: String,
     val actionLabel: String? = null,
-    val onAction: (() -> Unit)? = null
+    val onAction: (() -> Unit)? = null,
+    val onLongAction: (() -> Unit)? = null
 )
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SetupStepRow(number: Int, step: SetupStep) {
     val green  = accentGreenEffective()
@@ -101,14 +105,18 @@ fun SetupStepRow(number: Int, step: SetupStep) {
                 )
                 if (step.actionLabel != null && step.onAction != null) {
                     Surface(
-                        onClick = step.onAction,
-                        shape   = RoundedCornerShape(6.dp),
-                        color   = green.copy(alpha = 0.12f),
-                        border  = BorderStroke(1.dp, green.copy(alpha = 0.35f))
+                        shape  = RoundedCornerShape(6.dp),
+                        color  = green.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, green.copy(alpha = 0.35f))
                     ) {
                         Text(
                             step.actionLabel,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .combinedClickable(
+                                    onClick     = step.onAction,
+                                    onLongClick = step.onLongAction
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                             color    = green,
                             style    = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
                             softWrap = false

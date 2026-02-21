@@ -543,16 +543,18 @@ private fun LogEntry(
 
 private fun relativeTimeFrom(tsMs: Long): String {
     if (tsMs == 0L) return ""
-    val diff  = System.currentTimeMillis() - tsMs
-    val mins  = diff / 60_000
-    val hours = diff / 3_600_000
-    val days  = diff / 86_400_000
+    val diff   = System.currentTimeMillis() - tsMs
+    val mins   = diff / 60_000
+    val hours  = diff / 3_600_000
+    val days   = diff / 86_400_000
+    val months = days / 30
+    val years  = days / 365
     return when {
-        mins  < 1  -> "just now"
-        mins  < 60 -> "$mins min${if (mins == 1L) "" else "s"} ago"
-        hours < 24 -> "$hours hour${if (hours == 1L) "" else "s"} ago"
-        days  < 7  -> "$days day${if (days == 1L) "" else "s"} ago"
-        else       -> java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.US)
-            .format(java.util.Date(tsMs))
+        mins  < 1   -> "just now"
+        mins  < 60  -> "$mins min${if (mins == 1L) "" else "s"} ago"
+        hours < 24  -> "$hours hour${if (hours == 1L) "" else "s"} ago"
+        days  < 30  -> "$days day${if (days == 1L) "" else "s"} ago"
+        years < 1   -> "$months month${if (months == 1L) "" else "s"} ago"
+        else        -> "$years year${if (years == 1L) "" else "s"} ago"
     }
 }

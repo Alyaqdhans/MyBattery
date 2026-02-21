@@ -1,6 +1,7 @@
 package com.alyaqdhan.mybattery
 
 import android.content.Intent
+import android.net.Uri
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -30,7 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import androidx.core.net.toUri
 
 class SetupActivity : ComponentActivity() {
 
@@ -106,7 +106,7 @@ class SetupActivity : ComponentActivity() {
                             onDialCode     = {
                                 startActivity(
                                     Intent(Intent.ACTION_DIAL,
-                                        "tel:*%239900".toUri())
+                                        Uri.fromParts("tel", viewModel.dialCode, null))
                                 )
                             }
                         )
@@ -127,13 +127,20 @@ private fun SetupScreen(
     onBack: () -> Unit,
     onDialCode: () -> Unit
 ) {
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editCodeDraft  by remember { mutableStateOf("") }
+
     val steps = listOf(
-        SetupStep(painterResource(R.drawable.phone), "Open Samsung SysDump",
-            "Tap the button on the right and type # to open the menu.",
-            actionLabel = "*#9900#",
-            onAction    = onDialCode),
+        SetupStep(painterResource(R.drawable.phone), "Dial *#9900#",
+            "Click the button on the right and type # to open SysDump menu.",
+            actionLabel  = viewModel.dialCode,
+            onAction     = onDialCode,
+            onLongAction = {
+                editCodeDraft = viewModel.dialCode
+                showEditDialog = true
+            }),
         SetupStep(painterResource(R.drawable.play_arrow), "Run dumpstate/logcat",
-            "Tap \"Run dumpstate/logcat\" and wait a couple of minutes to finish."),
+            "Tap \"Run dumpstate/logcat\" and wait, it takes a while to create."),
         SetupStep(painterResource(R.drawable.check),      "Copy to sdcard",
             "Tap \"Copy to sdcard(include CP Ramdump)\". Logs will be saved to Internal Storage."),
         SetupStep(painterResource(R.drawable.search),     "Grant folder permission",
@@ -282,5 +289,31 @@ private fun SetupScreen(
 
             Spacer(Modifier.height(36.dp))
         }
+    }
+
+    // ── Edit dial code dialog ─────────────────────────────────────────────────
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Edit dial code") },
+            text  = {
+                OutlinedTextField(
+                    value         = editCodeDraft,
+                    onValueChange = { editCodeDraft = it },
+                    singleLine    = true,
+                    label         = { Text("Dial code") },
+                    placeholder   = { Text("*#9900#") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.saveDialCode(editCodeDraft)
+                    showEditDialog = false
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }

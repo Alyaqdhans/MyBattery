@@ -46,6 +46,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var gaugeAmplitude by mutableStateOf(1f)   ; private set
     var gaugeReplayKey by mutableIntStateOf(0) ; private set
 
+    // ── Dial code ─────────────────────────────────────────────────────────────
+    var dialCode by mutableStateOf(prefs.getString("dial_code", "*#9900") ?: "*#9900") ; private set
+
+    fun saveDialCode(code: String) {
+        dialCode = code.ifBlank { "*#9900" }
+        prefs.edit { putString("dial_code", dialCode) }
+    }
+
     // ── Initialization ────────────────────────────────────────────────────────
 
     /**

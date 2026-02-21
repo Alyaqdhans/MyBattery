@@ -25,13 +25,15 @@ data class BatteryInfo(
             val mins   = diffMs / 60_000
             val hours  = diffMs / 3_600_000
             val days   = diffMs / 86_400_000
+            val months = days / 30
+            val years  = days / 365
             return when {
-                mins  < 1  -> "just now"
-                mins  < 60 -> "$mins min${if (mins == 1L) "" else "s"} ago"
-                hours < 24 -> "$hours hour${if (hours == 1L) "" else "s"} ago"
-                days  < 7  -> "$days day${if (days == 1L) "" else "s"} ago"
-                else       -> SimpleDateFormat("MMM dd, yyyy", Locale.US)
-                    .format(java.util.Date(logTimestampMs))
+                mins  < 1   -> "just now"
+                mins  < 60  -> "$mins min${if (mins == 1L) "" else "s"} ago"
+                hours < 24  -> "$hours hour${if (hours == 1L) "" else "s"} ago"
+                days  < 30  -> "$days day${if (days == 1L) "" else "s"} ago"
+                years < 1   -> "$months month${if (months == 1L) "" else "s"} ago"
+                else        -> "$years year${if (years == 1L) "" else "s"} ago"
             }
         }
 
