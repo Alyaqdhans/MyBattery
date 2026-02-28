@@ -1,3 +1,6 @@
+### If you want to support me click the button below :)
+<a href='https://ko-fi.com/S6S8LHUB5' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi6.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+
 # MyBattery
 
 <img src="https://github.com/user-attachments/assets/7ead41a7-9d7b-4ce0-bf57-b9ef57ed6205" width="222">
