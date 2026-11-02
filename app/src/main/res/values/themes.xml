@@ -1,15 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!--
-        Base theme — used for the launch window background only.
-        Inherits from the platform Material theme (no AppCompat required).
-        Compose draws all UI; this theme only controls the pre-draw window chrome.
-    -->
     <style name="Theme.MyBattery" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">?android:attr/colorBackground</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 
 </resources>
