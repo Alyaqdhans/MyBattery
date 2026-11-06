@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
         composeView.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MyBatteryTheme {
+                MyBatteryTheme(dynamicColor = viewModel.useDynamicColor) {
                     BatteryDashboard(
                         viewModel       = viewModel,
                         onNavigateSetup = {

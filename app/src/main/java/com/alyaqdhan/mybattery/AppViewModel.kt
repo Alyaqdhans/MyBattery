@@ -55,6 +55,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit { putString("dial_code", dialCode) }
     }
 
+    // ── Theme ─────────────────────────────────────────────────────────────────
+    var useDynamicColor by mutableStateOf(prefs.getBoolean("dynamic_color", true)) ; private set
+
+    fun saveUseDynamicColor(enabled: Boolean) {
+        useDynamicColor = enabled
+        prefs.edit { putBoolean("dynamic_color", enabled) }
+    }
+
     // ── Initialization ────────────────────────────────────────────────────────
 
     /**
