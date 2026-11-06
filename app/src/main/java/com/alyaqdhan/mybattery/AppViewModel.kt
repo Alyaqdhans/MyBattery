@@ -66,6 +66,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val savedUriStr = prefs.getString("folder_uri", null)
         val savedUri    = savedUriStr?.toUri()
         folderUri       = savedUri
+        releaseUnusedFolderGrants(keep = savedUri)
 
         if (savedUri == null) return false
 
@@ -175,10 +176,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
             if (latestEntry == null) {
                 // Nothing found — treat as wrong folder, do NOT persist the URI
+                val savedUri     = prefs.getString("folder_uri", null)?.toUri()
                 isLoadingDetail  = false
                 folderAccessible = false
                 alreadyHasPerm   = false
-                folderUri        = prefs.getString("folder_uri", null)?.toUri()
+                folderUri        = savedUri
+                releaseUnusedFolderGrants(keep = savedUri)
                 errorDialog      = ErrorDialog.WrongFolder(
                     "No dumpstate log files found in the selected folder. " +
                             "Please navigate to /Device/log/ and try again."
@@ -190,6 +193,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // Folder looks correct — persist the URI and navigate to Dashboard immediately.
             // The scan continues in the background; the Dashboard shows isLoadingDetail.
             prefs.edit { putString("folder_uri", uri.toString()) }
+            releaseUnusedFolderGrants(keep = uri)
             onResult(true)
 
             val info = withContext(Dispatchers.IO) {
@@ -208,6 +212,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 errorDialog      = ErrorDialog.WrongFolder(info.errorMessage)
             }
         }
+    }
+
+    /**
+     * The app only ever reads one folder, so any other grant is left over from a rejected or
+     * replaced pick. Android keeps those until they're released, even after the app stops using them.
+     */
+    private fun releaseUnusedFolderGrants(keep: Uri?) {
+        val resolver = context.contentResolver
+        resolver.persistedUriPermissions
+            .filter { it.uri != keep }
+            .forEach {
+                try {
+                    resolver.releasePersistableUriPermission(
+                        it.uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (_: SecurityException) {}
+            }
     }
 
     // ── Rescan (pull-to-refresh) ──────────────────────────────────────────────
