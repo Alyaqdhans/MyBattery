@@ -10,15 +10,13 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -28,11 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
@@ -179,36 +179,40 @@ private fun SetupScreen(
     val dialCodeLabel = viewModel.dialCode.localDigits()
 
     val steps = listOf(
-        SetupStep(painterResource(R.drawable.phone), stringResource(R.string.step_dial_title),
-            stringResource(R.string.step_dial_desc),
+        SetupStep(
+            title        = stringResource(R.string.step_dial_title),
+            desc         = stringResource(R.string.step_dial_desc),
             actionLabel  = dialCodeLabel,
             onAction     = onDialCode,
-            onLongAction = {
+            onEditAction = {
                 editCodeDraft = dialCodeLabel
                 showEditDialog = true
-            }),
-        SetupStep(painterResource(R.drawable.play_arrow), stringResource(R.string.step_run_title),
-            stringResource(R.string.step_run_desc)),
-        SetupStep(painterResource(R.drawable.check),      stringResource(R.string.step_copy_title),
-            stringResource(R.string.step_copy_desc)),
-        SetupStep(painterResource(R.drawable.search),     stringResource(R.string.step_grant_title),
-            stringResource(R.string.step_grant_desc))
+            }
+        ),
+        SetupStep(stringResource(R.string.step_run_title), stringResource(R.string.step_run_desc)),
+        SetupStep(stringResource(R.string.step_copy_title), stringResource(R.string.step_copy_desc)),
+        SetupStep(stringResource(R.string.step_grant_title), stringResource(R.string.step_grant_desc))
     )
 
     var shown by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { shown = true }
-    val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(350), label = "setup_fade")
+    val heroAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(350), label = "setup_hero")
+    val bodyAlpha by animateFloatAsState(
+        if (shown) 1f else 0f, tween(400, delayMillis = 140), label = "setup_body")
+    val bodySlide by animateFloatAsState(
+        if (shown) 0f else 24f, tween(400, easing = FastOutSlowInEasing, delayMillis = 140), label = "setup_slide")
 
     // isLoadingDetail is true while the ViewModel is scanning after folder pick
     val isScanning        = viewModel.isLoadingDetail
     val hasLivePermission = viewModel.alreadyHasPerm
     val green             = accentGreenEffective()
     val border            = cardBorderColor()
+    val page              = appColors().page
     val tp                = textPrimary()
     val ts                = textSecondary()
-    val onPrimary         = MaterialTheme.colorScheme.onPrimary
-    val grantedContainer  = MaterialTheme.colorScheme.surfaceContainerHighest
-    val grantedContent    = MaterialTheme.colorScheme.onSurfaceVariant
+    val muted             = MaterialTheme.colorScheme.onSurfaceVariant
+    val error             = MaterialTheme.colorScheme.error
+    val cardActionStyle   = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
 
     // Show error dialogs (wrong folder, etc.)
     ErrorDialogHost(
@@ -216,201 +220,244 @@ private fun SetupScreen(
         onDismiss   = { viewModel.dismissErrorDialog() }
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val scroll = rememberScrollState()
+
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f)) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(340.dp)
+                    .background(Brush.verticalGradient(listOf(green.copy(alpha = 0.10f), Color.Transparent)))
+            )
+
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scroll)
+                    .statusBarsPadding()
+                    .padding(horizontal = 20.dp)
+            ) {
+                // ── Hero ──────────────────────────────────────────────────────
+                Column(
+                    Modifier.fillMaxWidth().alpha(heroAlpha),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    AppLogo()
+                    Text(
+                        stringResource(R.string.app_name), color = tp,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        stringResource(R.string.setup_subtitle), color = ts,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                Column(
+                    Modifier
+                        .alpha(bodyAlpha)
+                        .offset { IntOffset(0, bodySlide.dp.roundToPx()) },
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // ── Steps ─────────────────────────────────────────────────
+                    SetupCard {
+                        Column(Modifier.padding(20.dp)) {
+                            Text(
+                                stringResource(R.string.setup_how_to), color = tp,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                            )
+                            Spacer(Modifier.height(18.dp))
+                            steps.forEachIndexed { i, step ->
+                                SetupStepRow(
+                                    number = i + 1,
+                                    step   = step,
+                                    isLast = i == steps.lastIndex,
+                                    isDone = i == steps.lastIndex && hasLivePermission
+                                )
+                            }
+                        }
+                    }
+
+                    // ── Folder access ─────────────────────────────────────────
+                    if (hasLivePermission) {
+                        SetupCard {
+                            Surface(
+                                onClick = onOpenSettings,
+                                enabled = !isScanning,
+                                color   = Color.Transparent
+                            ) {
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 20.dp, vertical = 18.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (isScanning) {
+                                        CircularProgressIndicator(
+                                            modifier    = Modifier.size(22.dp),
+                                            color       = green,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            painterResource(R.drawable.check_circle), null,
+                                            tint     = green,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(
+                                        stringResource(
+                                            if (isScanning) R.string.setup_scanning
+                                            else R.string.setup_permission_granted
+                                        ),
+                                        modifier = Modifier.weight(1f),
+                                        color    = tp,
+                                        style    = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                    )
+                                    if (!isScanning) {
+                                        Icon(
+                                            painterResource(R.drawable.arrow_forward_ios),
+                                            stringResource(R.string.setup_open_app_settings),
+                                            tint     = muted,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            HorizontalDivider(color = border)
+                            Row(Modifier.fillMaxWidth().padding(8.dp)) {
+                                TextButton(
+                                    onClick  = onPickFolder,
+                                    enabled  = !isScanning,
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                    colors   = ButtonDefaults.textButtonColors(contentColor = tp)
+                                ) {
+                                    Text(stringResource(R.string.setup_change_folder), style = cardActionStyle)
+                                }
+                                TextButton(
+                                    onClick  = { showRemoveDialog = true },
+                                    enabled  = !isScanning,
+                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                                    colors   = ButtonDefaults.textButtonColors(contentColor = error)
+                                ) {
+                                    Text(stringResource(R.string.setup_remove_access), style = cardActionStyle)
+                                }
+                            }
+                        }
+                    }
+
+                    // ── App colors ────────────────────────────────────────────
+                    // Wallpaper colors only exist on Android 12+, so older versions have nothing to pick.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        SetupCard {
+                            Column(Modifier.padding(20.dp)) {
+                                Text(
+                                    stringResource(R.string.theme_title), color = tp,
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                    SegmentedButton(
+                                        selected = viewModel.useDynamicColor,
+                                        onClick  = { viewModel.saveUseDynamicColor(true) },
+                                        shape    = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                                    ) { Text(stringResource(R.string.theme_wallpaper)) }
+                                    SegmentedButton(
+                                        selected = !viewModel.useDynamicColor,
+                                        onClick  = { viewModel.saveUseDynamicColor(false) },
+                                        shape    = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                                    ) { Text(stringResource(R.string.theme_classic)) }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+            }
+
+            // Keeps scrolled content off the status bar icons, without covering the top at rest
+            Column(Modifier.graphicsLayer { alpha = (scroll.value / 48.dp.toPx()).coerceIn(0f, 1f) }) {
+                Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(page))
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(16.dp)
+                        .background(Brush.verticalGradient(listOf(page, Color.Transparent)))
+                )
+            }
+
+            // Fades the cards out under the bottom buttons
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(20.dp)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, page)))
+            )
+        }
+
+        // ── Bottom actions ────────────────────────────────────────────────────
         Column(
             Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp)
+                .fillMaxWidth()
+                .background(page)
+                .navigationBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Spacer(Modifier.height(56.dp))
-
-            // ── App header ────────────────────────────────────────────────────
-            Box(Modifier.alpha(alpha)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(48.dp)
-                            .background(
-                                Brush.radialGradient(listOf(green.copy(alpha = 0.28f), Color.Transparent)),
-                                CircleShape
-                            )
-                            .border(1.5.dp, green.copy(alpha = 0.5f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(painterResource(R.drawable.battery), null,
-                            tint = green, modifier = Modifier.size(22.dp))
+            if (!hasLivePermission) {
+                Button(
+                    onClick   = onPickFolder,
+                    enabled   = !isScanning,
+                    modifier  = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    shape     = RoundedCornerShape(14.dp),
+                    colors    = ButtonDefaults.buttonColors(
+                        containerColor         = green,
+                        contentColor           = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        disabledContentColor   = muted
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                ) {
+                    if (isScanning) {
+                        CircularProgressIndicator(
+                            modifier    = Modifier.size(20.dp),
+                            color       = muted,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(painterResource(R.drawable.folder), null, modifier = Modifier.size(20.dp))
                     }
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(stringResource(R.string.app_name), color = tp,
-                            style = MaterialTheme.typography.titleLarge)
-                        Text(stringResource(R.string.setup_subtitle), color = ts,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(40.dp))
-
-            // ── Steps ─────────────────────────────────────────────────────────
-            Box(Modifier.alpha(alpha)) {
-                Column {
-                    Text(stringResource(R.string.setup_how_to), color = tp,
-                        style = MaterialTheme.typography.titleMedium)
-                    Spacer(Modifier.height(20.dp))
-                    steps.forEachIndexed { i, step ->
-                        SetupStepRow(number = i + 1, step = step)
-                        if (i < steps.lastIndex) Spacer(Modifier.height(12.dp))
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(36.dp))
-
-            // ── Action buttons ────────────────────────────────────────────────
-            Box(Modifier.alpha(alpha)) {
-                Column {
-                    Button(
-                        onClick   = { if (hasLivePermission) onOpenSettings() else onPickFolder() },
-                        enabled   = !isScanning,
-                        modifier  = Modifier.fillMaxWidth().height(52.dp),
-                        shape     = RoundedCornerShape(14.dp),
-                        colors    = ButtonDefaults.buttonColors(
-                            containerColor         = if (hasLivePermission) grantedContainer else green,
-                            contentColor           = if (hasLivePermission) grantedContent else onPrimary,
-                            disabledContainerColor = grantedContainer,
-                            disabledContentColor   = grantedContent
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        stringResource(
+                            if (isScanning) R.string.setup_scanning else R.string.setup_grant_permission
                         ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                    ) {
-                        if (isScanning) {
-                            CircularProgressIndicator(
-                                modifier  = Modifier.size(20.dp),
-                                color     = MaterialTheme.colorScheme.onSurfaceVariant,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(
-                                stringResource(R.string.setup_scanning),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                            )
-                        } else {
-                            Icon(
-                                if (hasLivePermission) painterResource(R.drawable.check_circle)
-                                else painterResource(R.drawable.search),
-                                null, modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(
-                                stringResource(
-                                    if (hasLivePermission) R.string.setup_permission_granted
-                                    else R.string.setup_grant_permission
-                                ),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                            )
-                            if (hasLivePermission) {
-                                Spacer(Modifier.width(10.dp))
-                                Icon(
-                                    painterResource(R.drawable.arrow_forward_ios),
-                                    stringResource(R.string.setup_open_app_settings),
-                                    modifier = Modifier.size(13.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    AnimatedVisibility(
-                        visible = hasLivePermission && !isScanning,
-                        enter   = fadeIn(tween(250)),
-                        exit    = fadeOut(tween(200))
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(top = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick  = onPickFolder,
-                                modifier = Modifier.weight(1f).height(52.dp),
-                                shape    = RoundedCornerShape(14.dp),
-                                border   = BorderStroke(1.dp, border),
-                                colors   = ButtonDefaults.outlinedButtonColors(contentColor = tp)
-                            ) {
-                                Text(
-                                    stringResource(R.string.setup_change_folder),
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                                )
-                            }
-                            OutlinedButton(
-                                onClick  = { showRemoveDialog = true },
-                                modifier = Modifier.weight(1f).height(52.dp),
-                                shape    = RoundedCornerShape(14.dp),
-                                border   = BorderStroke(1.dp, border),
-                                colors   = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                )
-                            ) {
-                                Text(
-                                    stringResource(R.string.setup_remove_access),
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                                )
-                            }
-                        }
-                    }
-
-                    AnimatedVisibility(
-                        visible = showBackButton,
-                        enter   = fadeIn(tween(250)),
-                        exit    = fadeOut(tween(200))
-                    ) {
-                        Column {
-                            Spacer(Modifier.height(12.dp))
-                            OutlinedButton(
-                                onClick  = onBack,
-                                modifier = Modifier.fillMaxWidth().height(52.dp),
-                                shape    = RoundedCornerShape(14.dp),
-                                border   = BorderStroke(1.dp, border),
-                                colors   = ButtonDefaults.outlinedButtonColors(contentColor = tp)
-                            ) {
-                                Icon(painterResource(R.drawable.arrow_back), null,
-                                    tint = ts, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Text(
-                                    stringResource(R.string.setup_back_to_dashboard),
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                                )
-                            }
-                        }
-                    }
+                        style = cardActionStyle
+                    )
                 }
             }
 
-            // ── App colors ────────────────────────────────────────────────────
-            // Wallpaper colors only exist on Android 12+, so older versions have nothing to pick.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                Spacer(Modifier.height(28.dp))
-                Box(Modifier.alpha(alpha)) {
-                    Column {
-                        Text(stringResource(R.string.theme_title), color = tp,
-                            style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.height(12.dp))
-                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                            SegmentedButton(
-                                selected = viewModel.useDynamicColor,
-                                onClick  = { viewModel.saveUseDynamicColor(true) },
-                                shape    = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                            ) { Text(stringResource(R.string.theme_wallpaper)) }
-                            SegmentedButton(
-                                selected = !viewModel.useDynamicColor,
-                                onClick  = { viewModel.saveUseDynamicColor(false) },
-                                shape    = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                            ) { Text(stringResource(R.string.theme_classic)) }
-                        }
-                    }
+            if (showBackButton) {
+                OutlinedButton(
+                    onClick  = onBack,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                    shape    = RoundedCornerShape(14.dp),
+                    border   = BorderStroke(1.dp, border),
+                    colors   = ButtonDefaults.outlinedButtonColors(contentColor = tp)
+                ) {
+                    Icon(painterResource(R.drawable.arrow_back), null,
+                        tint = ts, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(stringResource(R.string.setup_back_to_dashboard), style = cardActionStyle)
                 }
             }
-
-            Spacer(Modifier.height(36.dp))
         }
     }
 
@@ -425,10 +472,7 @@ private fun SetupScreen(
                     showRemoveDialog = false
                     onRemoveAccess()
                 }) {
-                    Text(
-                        stringResource(R.string.remove_access_confirm),
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Text(stringResource(R.string.remove_access_confirm), color = error)
                 }
             },
             dismissButton = {

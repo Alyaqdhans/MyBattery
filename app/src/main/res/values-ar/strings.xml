@@ -11,7 +11,7 @@
     <string name="setup_subtitle">قارئ سجلات سامسونج</string>
     <string name="setup_how_to">طريقة الحصول على السجل</string>
     <string name="step_dial_title">اطلب ⁦*#٩٩٠٠#⁩</string>
-    <string name="step_dial_desc">اضغط على الزر المجاور ثم اكتب # لفتح قائمة SysDump.</string>
+    <string name="step_dial_desc">اضغط على الرمز أدناه ثم اكتب # لفتح قائمة SysDump.</string>
     <string name="step_run_title">شغّل dumpstate/logcat</string>
     <string name="step_run_desc">اضغط على \"⁦Run dumpstate/logcat⁩\" وانتظر، فإنشاء السجل يستغرق بعض الوقت.</string>
     <string name="step_copy_title">انسخ إلى sdcard</string>

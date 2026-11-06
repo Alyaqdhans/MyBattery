@@ -5,7 +5,7 @@
     <string name="setup_subtitle">Samsung log reader</string>
     <string name="setup_how_to">How to get your log</string>
     <string name="step_dial_title">Dial *#9900#</string>
-    <string name="step_dial_desc">Click the button on the right and type # to open SysDump menu.</string>
+    <string name="step_dial_desc">Tap the code below, then type # to open the SysDump menu.</string>
     <string name="step_run_title">Run dumpstate/logcat</string>
     <string name="step_run_desc">Tap \"Run dumpstate/logcat\" and wait, it takes a while to create.</string>
     <string name="step_copy_title">Copy to sdcard</string>

@@ -1,0 +1,241 @@
+package com.alyaqdhan.mybattery
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
+
+/**
+ * The app's mark: a battery with a heartbeat through it, on the same wavy edge as the health
+ * gauge. It's drawn rather than loaded so it takes the theme's colors and the pulse can trace
+ * itself in. Direction-neutral, so it stays the same way round in Arabic.
+ *
+ * The depth comes from the glow, not from Modifier.shadow: on Android 10 a shadow around this
+ * concave edge makes the render thread hang.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun AppLogo(modifier: Modifier = Modifier) {
+    val primary   = MaterialTheme.colorScheme.primary
+    val onPrimary = MaterialTheme.colorScheme.onPrimary
+    val badge     = MaterialShapes.Cookie12Sided.toShape()
+
+    val pop   = remember { Animatable(0.7f) }
+    val trace = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        launch { pop.animateTo(1f, spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow)) }
+        trace.animateTo(1f, tween(1000, delayMillis = 250, easing = FastOutSlowInEasing))
+    }
+
+    Box(modifier.size(132.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.radialGradient(listOf(primary.copy(alpha = 0.24f), Color.Transparent)))
+        )
+        Canvas(
+            Modifier
+                .size(96.dp)
+                .graphicsLayer {
+                    scaleX = pop.value
+                    scaleY = pop.value
+                }
+                .background(Brush.linearGradient(listOf(primary, lerp(primary, onPrimary, 0.24f))), badge)
+        ) {
+            val unit = size.minDimension / 100f
+
+            // Battery body and terminal
+            drawRoundRect(
+                color        = onPrimary,
+                topLeft      = Offset(22f * unit, 34f * unit),
+                size         = Size(50f * unit, 32f * unit),
+                cornerRadius = CornerRadius(9f * unit),
+                style        = Stroke(width = 4.6f * unit)
+            )
+            drawRoundRect(
+                color        = onPrimary,
+                topLeft      = Offset(75.5f * unit, 44f * unit),
+                size         = Size(4f * unit, 12f * unit),
+                cornerRadius = CornerRadius(2f * unit)
+            )
+
+            // Heartbeat
+            val pulse = Path().apply {
+                moveTo(29f * unit, 50f * unit)
+                lineTo(39f * unit, 50f * unit)
+                lineTo(44f * unit, 41f * unit)
+                lineTo(51f * unit, 59f * unit)
+                lineTo(56f * unit, 50f * unit)
+                lineTo(65f * unit, 50f * unit)
+            }
+            val measure = PathMeasure().apply { setPath(pulse, false) }
+            val traced  = Path()
+            measure.getSegment(0f, measure.length * trace.value, traced, true)
+            drawPath(
+                path  = traced,
+                color = onPrimary,
+                style = Stroke(width = 3.8f * unit, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
+        }
+    }
+}
+
+/** The card every Setup section sits in, matching the Dashboard's cards. */
+@Composable
+fun SetupCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    ElevatedCard(
+        modifier  = modifier.fillMaxWidth(),
+        shape     = RoundedCornerShape(24.dp),
+        colors    = CardDefaults.elevatedCardColors(containerColor = cardColor()),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp),
+        content   = content
+    )
+}
+
+data class SetupStep(
+    val title: String,
+    val desc: String,
+    val actionLabel: String? = null,
+    val onAction: (() -> Unit)? = null,
+    val onEditAction: (() -> Unit)? = null
+)
+
+/** One stop on the steps timeline. A finished step swaps its number for a tick. */
+@Composable
+fun SetupStepRow(number: Int, step: SetupStep, isLast: Boolean, isDone: Boolean = false) {
+    val green = accentGreenEffective()
+
+    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .background(if (isDone) green else green.copy(alpha = 0.12f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isDone) {
+                    Icon(
+                        painterResource(R.drawable.check), null,
+                        tint     = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                } else {
+                    Text(
+                        "$number".localDigits(),
+                        color = green,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+            }
+            if (!isLast) {
+                Box(
+                    Modifier
+                        .padding(vertical = 5.dp)
+                        .width(2.dp)
+                        .weight(1f)
+                        .background(cardBorderColor(), RoundedCornerShape(1.dp))
+                )
+            }
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(Modifier.weight(1f).padding(top = 5.dp, bottom = if (isLast) 0.dp else 22.dp)) {
+            Text(
+                step.title,
+                color = textPrimary(),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                step.desc,
+                color = textSecondary(),
+                style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp)
+            )
+            if (step.actionLabel != null && step.onAction != null && step.onEditAction != null) {
+                Spacer(Modifier.height(10.dp))
+                DialCodeButton(step.actionLabel, step.onAction, step.onEditAction)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun DialCodeButton(label: String, onDial: () -> Unit, onEdit: () -> Unit) {
+    val green = accentGreenEffective()
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            shape  = RoundedCornerShape(12.dp),
+            color  = green.copy(alpha = 0.12f),
+            border = BorderStroke(1.dp, green.copy(alpha = 0.35f))
+        ) {
+            Row(
+                Modifier
+                    .combinedClickable(onClick = onDial, onLongClick = onEdit)
+                    .padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painterResource(R.drawable.phone), null,
+                    tint     = green,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    label,
+                    color    = green,
+                    style    = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight    = FontWeight.Bold,
+                        textDirection = TextDirection.Ltr
+                    ),
+                    softWrap = false
+                )
+            }
+        }
+        Spacer(Modifier.width(4.dp))
+        IconButton(onClick = onEdit) {
+            Icon(
+                painterResource(R.drawable.edit),
+                stringResource(R.string.dial_edit_title),
+                tint     = textSecondary(),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
