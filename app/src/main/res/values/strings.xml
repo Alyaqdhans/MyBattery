@@ -28,6 +28,7 @@
     <string name="dial_edit_title">Edit dial code</string>
     <string name="dial_edit_label">Dial code</string>
     <string name="dial_edit_placeholder">*#9900#</string>
+    <string name="no_dialer">This device has no phone app to dial the code.</string>
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
 

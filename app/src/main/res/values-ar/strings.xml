@@ -34,6 +34,7 @@
     <string name="dial_edit_title">تعديل رمز الاتصال</string>
     <string name="dial_edit_label">رمز الاتصال</string>
     <string name="dial_edit_placeholder">*#٩٩٠٠#</string>
+    <string name="no_dialer">لا يوجد على هذا الجهاز تطبيق هاتف لطلب الرمز.</string>
     <string name="action_save">حفظ</string>
     <string name="action_cancel">إلغاء</string>
 

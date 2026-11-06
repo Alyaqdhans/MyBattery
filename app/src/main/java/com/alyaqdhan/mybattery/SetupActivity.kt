@@ -7,6 +7,7 @@ import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -118,12 +119,7 @@ class SetupActivity : ComponentActivity() {
                             finish()
                         },
                         onBack         = { finish() },
-                        onDialCode     = {
-                            startActivity(
-                                Intent(Intent.ACTION_DIAL,
-                                    Uri.fromParts("tel", viewModel.dialCode, null))
-                            )
-                        }
+                        onDialCode     = { openDialer(viewModel.dialCode) }
                     )
                 }
             }
@@ -136,6 +132,15 @@ class SetupActivity : ComponentActivity() {
         // pick is being scanned: its result arrives just before this and handles errors itself.
         val viewModel = appViewModel
         if (!viewModel.isLoadingDetail) viewModel.checkOnResume()
+    }
+
+    /** Not every device has a phone app, a Wi-Fi tablet for example. */
+    private fun openDialer(code: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", code, null)))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.no_dialer, Toast.LENGTH_LONG).show()
+        }
     }
 
     /**
