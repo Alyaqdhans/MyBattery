@@ -1,3 +1,110 @@
 <resources>
     <string name="app_name">My Battery</string>
+
+    <!-- Setup -->
+    <string name="setup_subtitle">Samsung log reader</string>
+    <string name="setup_how_to">How to get your log</string>
+    <string name="step_dial_title">Dial *#9900#</string>
+    <string name="step_dial_desc">Click the button on the right and type # to open SysDump menu.</string>
+    <string name="step_run_title">Run dumpstate/logcat</string>
+    <string name="step_run_desc">Tap \"Run dumpstate/logcat\" and wait, it takes a while to create.</string>
+    <string name="step_copy_title">Copy to sdcard</string>
+    <string name="step_copy_desc">Tap \"Copy to sdcard(include CP Ramdump)\". Logs will be saved to Internal Storage.</string>
+    <string name="step_grant_title">Grant folder permission</string>
+    <string name="step_grant_desc">Tap the button below, navigate to folder /log/, and allow reading the folder.</string>
+    <string name="setup_scanning">Scanning folder…</string>
+    <string name="setup_permission_granted">Permission Already Granted</string>
+    <string name="setup_grant_permission">Grant Permission to Log Folder</string>
+    <string name="setup_open_app_settings">Open app settings</string>
+    <string name="setup_back_to_dashboard">Back to Dashboard</string>
+    <string name="dial_edit_title">Edit dial code</string>
+    <string name="dial_edit_label">Dial code</string>
+    <string name="dial_edit_placeholder">*#9900#</string>
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Dashboard -->
+    <string name="browse_logs">Browse logs</string>
+    <string name="how_to_update_log">How to update log</string>
+    <string name="log_cached">cached</string>
+    <string name="log_created">Log created %1$s</string>
+    <string name="installed_on">Installed on %1$s</string>
+    <string name="version_label">v%1$s</string>
+    <string name="log_files_title">Log Files</string>
+    <string name="no_log_files">No log files found</string>
+    <string name="view_raw">View raw</string>
+
+    <!-- Time since a log was created -->
+    <string name="time_just_now">just now</string>
+    <plurals name="time_minutes">
+        <item quantity="one">%1$d min ago</item>
+        <item quantity="other">%1$d mins ago</item>
+    </plurals>
+    <plurals name="time_hours">
+        <item quantity="one">%1$d hour ago</item>
+        <item quantity="other">%1$d hours ago</item>
+    </plurals>
+    <plurals name="time_days">
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
+    <plurals name="time_months">
+        <item quantity="one">%1$d month ago</item>
+        <item quantity="other">%1$d months ago</item>
+    </plurals>
+    <plurals name="time_years">
+        <item quantity="one">%1$d year ago</item>
+        <item quantity="other">%1$d years ago</item>
+    </plurals>
+
+    <!-- Battery health card -->
+    <string name="gauge_title">BATTERY HEALTH</string>
+    <string name="gauge_percent">%1$d%%</string>
+    <string name="health_source_bsoh" translatable="false">BSOH</string>
+    <string name="status_loading">Loading</string>
+    <string name="status_scanning_log">Scanning log…</string>
+    <string name="status_unsupported">Unsupported</string>
+    <string name="status_device_unsupported">Device unsupported</string>
+    <string name="health_new">New</string>
+    <string name="health_new_message">The phone is as fresh as it gets</string>
+    <string name="health_good">Good</string>
+    <string name="health_good_message">Battery is in great condition</string>
+    <string name="health_fair">Fair</string>
+    <string name="health_fair_message">Battery capacity is declining</string>
+    <string name="health_poor">Poor</string>
+    <string name="health_poor_message">Battery replacement recommended</string>
+
+    <!-- Charge cycles card -->
+    <string name="cycles_title">CHARGE CYCLES</string>
+    <string name="cycles_subtitle">Full charge equivalents</string>
+    <string name="cycles_not_reported">Not reported by device</string>
+    <plurals name="cycles_label">
+        <item quantity="one">cycle</item>
+        <item quantity="other">cycles</item>
+    </plurals>
+    <string name="wear_none">No wear</string>
+    <string name="wear_low">Low wear</string>
+    <string name="wear_moderate">Moderate wear</string>
+    <string name="wear_high">High wear</string>
+    <string name="wear_unavailable">Unavailable</string>
+
+    <!-- Raw log -->
+    <string name="action_back">Back</string>
+    <string name="action_search">Search</string>
+    <string name="search_placeholder">Search…</string>
+    <string name="search_clear">Clear search</string>
+    <string name="raw_title">Battery Lines</string>
+    <string name="raw_extracting">Extracting battery lines…</string>
+    <string name="raw_no_sections">(no battery sections found)</string>
+    <string name="raw_open_failed">(could not open file)</string>
+    <string name="raw_read_error">(read error: %1$s)</string>
+
+    <!-- Error dialogs -->
+    <string name="error_wrong_folder_title">Wrong Folder Selected</string>
+    <string name="error_wrong_folder_body">No dumpState_*.log file was found.\nSelect the correct log folder after running dumpstate from *#9900#.</string>
+    <string name="error_folder_missing_title">Folder Not Found</string>
+    <string name="error_folder_missing_body">The log folder has been deleted or is no longer accessible.\nYou\'ll need to generate a new log file.</string>
+    <string name="error_permission_lost_title">Permission Removed</string>
+    <string name="error_permission_lost_body">Folder permission was revoked in Android settings.\nGrant permission again to refresh your battery info.</string>
+    <string name="action_got_it">Got it</string>
 </resources>

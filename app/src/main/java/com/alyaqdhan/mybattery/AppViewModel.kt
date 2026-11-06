@@ -50,7 +50,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var dialCode by mutableStateOf(prefs.getString("dial_code", "*#9900") ?: "*#9900") ; private set
 
     fun saveDialCode(code: String) {
-        dialCode = code.ifBlank { "*#9900" }
+        // An Arabic keyboard can type Eastern digits, but the dialer needs Western ones.
+        dialCode = code.toWesternDigits().ifBlank { "*#9900" }
         prefs.edit { putString("dial_code", dialCode) }
     }
 

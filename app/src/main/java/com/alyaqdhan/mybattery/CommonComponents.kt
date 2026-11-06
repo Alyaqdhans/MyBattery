@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -71,7 +72,7 @@ fun SetupStepRow(number: Int, step: SetupStep) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                "$number",
+                "$number".localDigits(),
                 color = green,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
             )
@@ -117,7 +118,10 @@ fun SetupStepRow(number: Int, step: SetupStep) {
                                 )
                                 .padding(horizontal = 8.dp, vertical = 4.dp),
                             color    = green,
-                            style    = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            style    = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight    = FontWeight.SemiBold,
+                                textDirection = TextDirection.Ltr
+                            ),
                             softWrap = false
                         )
                     }

@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,14 +44,14 @@ fun WrongFolderDialog(errorMessage: String, onDismiss: () -> Unit) {
         ErrorIconRow(icon = painterResource(R.drawable.warning), tint = accentColor)
         Spacer(Modifier.height(16.dp))
         Text(
-            "Wrong Folder Selected",
+            stringResource(R.string.error_wrong_folder_title),
             color     = textPrimary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(Modifier.height(10.dp))
         Text(
-                "No dumpState_*.log file was found.\nSelect the correct log folder after running dumpstate from *#9900#.",
+            stringResource(R.string.error_wrong_folder_body),
             color     = textSecondary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp)
@@ -68,14 +69,14 @@ fun FolderDeletedDialog(onDismiss: () -> Unit) {
         ErrorIconRow(icon = painterResource(R.drawable.delete), tint = MaterialTheme.colorScheme.error)
         Spacer(Modifier.height(16.dp))
         Text(
-            "Folder Not Found",
+            stringResource(R.string.error_folder_missing_title),
             color     = textPrimary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "The log folder has been deleted or is no longer accessible.\nYou'll need to generate a new log file.",
+            stringResource(R.string.error_folder_missing_body),
             color     = textSecondary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp)
@@ -93,14 +94,14 @@ fun PermissionLostDialog(onDismiss: () -> Unit) {
         ErrorIconRow(icon = painterResource(R.drawable.warning), tint = warningColor())
         Spacer(Modifier.height(16.dp))
         Text(
-            "Permission Removed",
+            stringResource(R.string.error_permission_lost_title),
             color     = textPrimary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            "Folder permission was revoked in Android settings.\nGrant permission again to refresh your battery info.",
+            stringResource(R.string.error_permission_lost_body),
             color     = textSecondary(),
             textAlign = TextAlign.Center,
             style     = MaterialTheme.typography.bodySmall.copy(lineHeight = 19.sp)
@@ -164,6 +165,6 @@ private fun ErrorDismissButton(onClick: () -> Unit) {
     ) {
         Icon(painterResource(R.drawable.check_circle), null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text("Got it", style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
+        Text(stringResource(R.string.action_got_it), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
     }
 }

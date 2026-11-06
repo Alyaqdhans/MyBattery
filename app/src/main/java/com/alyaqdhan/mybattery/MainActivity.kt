@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -73,18 +74,16 @@ class MainActivity : ComponentActivity() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 MyBatteryTheme {
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        BatteryDashboard(
-                            viewModel       = viewModel,
-                            onNavigateSetup = {
-                                startActivity(Intent(this@MainActivity, SetupActivity::class.java)
-                                    .putExtra(SetupActivity.EXTRA_SHOW_BACK, true))
-                            },
-                            onNavigateRaw   = {
-                                startActivity(Intent(this@MainActivity, LogRawActivity::class.java))
-                            }
-                        )
-                    }
+                    BatteryDashboard(
+                        viewModel       = viewModel,
+                        onNavigateSetup = {
+                            startActivity(Intent(this@MainActivity, SetupActivity::class.java)
+                                .putExtra(SetupActivity.EXTRA_SHOW_BACK, true))
+                        },
+                        onNavigateRaw   = {
+                            startActivity(Intent(this@MainActivity, LogRawActivity::class.java))
+                        }
+                    )
                 }
             }
         }
@@ -177,9 +176,11 @@ private fun BatteryDashboard(
                             contentColor   = MaterialTheme.colorScheme.onSurface
                         )
                     ) {
+                        // The arrow is mirrored in RTL, so turn it the other way to still point down.
+                        val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
                         Icon(
-                            painterResource(R.drawable.arrow_back), "Browse logs",
-                            modifier = Modifier.size(20.dp).rotate(-90f)
+                            painterResource(R.drawable.arrow_back), stringResource(R.string.browse_logs),
+                            modifier = Modifier.size(20.dp).rotate(if (isRtl) 90f else -90f)
                         )
                     }
 
@@ -190,7 +191,7 @@ private fun BatteryDashboard(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            "My Battery", color = tp,
+                            stringResource(R.string.app_name), color = tp,
                             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
                         )
                         Spacer(Modifier.height(4.dp))
@@ -220,7 +221,7 @@ private fun BatteryDashboard(
                                             color = MaterialTheme.colorScheme.surfaceContainerHighest
                                         ) {
                                             Text(
-                                                "cached",
+                                                stringResource(R.string.log_cached),
                                                 modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp),
                                                 color    = muted.copy(alpha = 0.7f),
                                                 style    = MaterialTheme.typography.labelSmall.copy(
@@ -232,16 +233,18 @@ private fun BatteryDashboard(
                                     }
                                 }
                             }
-                            if (effectiveInfo.relativeDate.isNotEmpty())
+                            val logCreated = relativeTimeText(effectiveInfo.logTimestampMs)
+                            if (logCreated.isNotEmpty())
                                 Text(
-                                    "Log created ${effectiveInfo.relativeDate}",
+                                    stringResource(R.string.log_created, logCreated),
                                     color = muted, textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.labelSmall
                                 )
-                            if (effectiveInfo.batteryDateFormatted.isNotEmpty()) {
+                            val installDate = batteryDateText(effectiveInfo.batteryDateMs)
+                            if (installDate.isNotEmpty()) {
                                 Spacer(Modifier.height(2.dp))
                                 Text(
-                                    "Installed on ${effectiveInfo.batteryDateFormatted}",
+                                    stringResource(R.string.installed_on, installDate),
                                     color = muted.copy(alpha = 0.7f), textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.labelSmall
                                 )
@@ -258,7 +261,7 @@ private fun BatteryDashboard(
                             contentColor   = MaterialTheme.colorScheme.onSurface
                         )
                     ) {
-                        Icon(painterResource(R.drawable.info), "How to update log",
+                        Icon(painterResource(R.drawable.info), stringResource(R.string.how_to_update_log),
                             modifier = Modifier.size(18.dp))
                     }
                 }
@@ -277,7 +280,7 @@ private fun BatteryDashboard(
                         CycleCountCard(effectiveInfo, isLoadingDetail, isNewBattery, gaugeReplayKey)
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            "v${BuildConfig.VERSION_NAME}",
+                            stringResource(R.string.version_label, BuildConfig.VERSION_NAME).localDigits(),
                             color = muted.copy(alpha = 0.45f),
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -365,13 +368,13 @@ private fun LogSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "Log Files",
+                    stringResource(R.string.log_files_title),
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "${allLogEntries.size}",
+                    "${allLogEntries.size}".localDigits(),
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                 )
@@ -398,7 +401,7 @@ private fun LogSheet(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                "No log files found",
+                                stringResource(R.string.no_log_files),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -408,7 +411,7 @@ private fun LogSheet(
                             LogEntry(
                                 entry         = entry,
                                 isActive      = entry.name == activeFileName,
-                                relTime       = relativeTimeFrom(
+                                relTime       = relativeTimeText(
                                     extractTs(entry.name).takeIf { it != 0L } ?: entry.lastModified
                                 ),
                                 onSelectEntry = onSelectEntry,
@@ -528,31 +531,11 @@ private fun LogEntry(
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     painterResource(R.drawable.arrow_forward_ios),
-                    contentDescription = "View raw",
+                    contentDescription = stringResource(R.string.view_raw),
                     tint     = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(13.dp)
                 )
             }
         }
-    }
-}
-
-// ── Relative time helper ──────────────────────────────────────────────────────
-
-private fun relativeTimeFrom(tsMs: Long): String {
-    if (tsMs == 0L) return ""
-    val diff   = System.currentTimeMillis() - tsMs
-    val mins   = diff / 60_000
-    val hours  = diff / 3_600_000
-    val days   = diff / 86_400_000
-    val months = days / 30
-    val years  = days / 365
-    return when {
-        mins  < 1   -> "just now"
-        mins  < 60  -> "$mins min${if (mins == 1L) "" else "s"} ago"
-        hours < 24  -> "$hours hour${if (hours == 1L) "" else "s"} ago"
-        days  < 30  -> "$days day${if (days == 1L) "" else "s"} ago"
-        years < 1   -> "$months month${if (months == 1L) "" else "s"} ago"
-        else        -> "$years year${if (years == 1L) "" else "s"} ago"
     }
 }

@@ -1,5 +1,6 @@
 package com.alyaqdhan.mybattery
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -13,9 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
@@ -49,20 +54,20 @@ fun HealthGaugeCard(
 
     val animPct = arcAnimatable.value * 100f
 
-    data class GS(val color: Color, val label: String, val pill: String)
+    data class GS(val color: Color, @param:StringRes val label: Int, @param:StringRes val pill: Int)
     val gs = when {
-        isLoadingDetail && animPct >= 99.9f -> GS(gaugeBlue(),   "Loading",     "Scanning log…")
-        isLoadingDetail                     -> GS(gaugeGreen(),  "Loading",     "Scanning log…")
-        isUnsupported                       -> GS(gaugeGray(),   "Unsupported", "Device unsupported")
-        animPct >= 99.9f                    -> GS(gaugeBlue(),   "New",         "The phone is as fresh as it gets")
-        animPct >= 80f                      -> GS(gaugeGreen(),  "Good",        "Battery is in great condition")
-        animPct >= 60f                      -> GS(gaugeOrange(), "Fair",        "Battery capacity is declining")
-        else                                -> GS(gaugeRed(),    "Poor",        "Battery replacement recommended")
+        isLoadingDetail && animPct >= 99.9f -> GS(gaugeBlue(),   R.string.status_loading,     R.string.status_scanning_log)
+        isLoadingDetail                     -> GS(gaugeGreen(),  R.string.status_loading,     R.string.status_scanning_log)
+        isUnsupported                       -> GS(gaugeGray(),   R.string.status_unsupported, R.string.status_device_unsupported)
+        animPct >= 99.9f                    -> GS(gaugeBlue(),   R.string.health_new,         R.string.health_new_message)
+        animPct >= 80f                      -> GS(gaugeGreen(),  R.string.health_good,        R.string.health_good_message)
+        animPct >= 60f                      -> GS(gaugeOrange(), R.string.health_fair,        R.string.health_fair_message)
+        else                                -> GS(gaugeRed(),    R.string.health_poor,        R.string.health_poor_message)
     }
 
     val gaugeColor   by animateColorAsState(gs.color, tween(300), label = "gauge_color")
-    val currentLabel = gs.label
-    val pillMsg      = gs.pill
+    val currentLabel = stringResource(gs.label)
+    val pillMsg      = stringResource(gs.pill)
     val muted        = textMuted()
     val border       = cardBorderColor()
 
@@ -78,13 +83,13 @@ fun HealthGaugeCard(
         ) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Text(
-                    "BATTERY HEALTH",
+                    stringResource(R.string.gauge_title),
                     color = muted,
                     style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp)
                 )
                 if (!isLoadingDetail && !isUnsupported && info.healthSource == "bsoh") {
                     Text(
-                        "BSOH",
+                        stringResource(R.string.health_source_bsoh),
                         modifier = Modifier
                             .align(Alignment.CenterEnd)
                             .background(
@@ -110,7 +115,8 @@ fun HealthGaugeCard(
                 )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        if (isLoadingDetail || isUnsupported) "—" else "${animPct.toInt()}%",
+                        if (isLoadingDetail || isUnsupported) "—"
+                        else stringResource(R.string.gauge_percent, animPct.toInt()).localDigits(),
                         color = gaugeColor,
                         style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold)
                     )
@@ -197,13 +203,13 @@ fun CycleCountCard(
     val onSurfV = MaterialTheme.colorScheme.onSurfaceVariant
     val border  = cardBorderColor()
 
-    val (statusColorTarget, statusText) = when {
-        isLoadingDetail                  -> Pair(gaugeBlue(),   "Loading")
-        isNewBattery                     -> Pair(gaugeBlue(),   "No wear")
-        isUnsupported                    -> Pair(gaugeGray(),   "Unavailable")
-        animatedCycles < 2000            -> Pair(gaugeGreen(),  "Low wear")
-        animatedCycles < 3000            -> Pair(gaugeOrange(), "Moderate wear")
-        else                             -> Pair(gaugeRed(),    "High wear")
+    val (statusColorTarget, statusTextRes) = when {
+        isLoadingDetail                  -> Pair(gaugeBlue(),   R.string.status_loading)
+        isNewBattery                     -> Pair(gaugeBlue(),   R.string.wear_none)
+        isUnsupported                    -> Pair(gaugeGray(),   R.string.wear_unavailable)
+        animatedCycles < 2000            -> Pair(gaugeGreen(),  R.string.wear_low)
+        animatedCycles < 3000            -> Pair(gaugeOrange(), R.string.wear_moderate)
+        else                             -> Pair(gaugeRed(),    R.string.wear_high)
     }
     val statusColor by animateColorAsState(statusColorTarget, tween(300), label = "cycle_color")
 
@@ -233,13 +239,15 @@ fun CycleCountCard(
                 Spacer(Modifier.width(14.dp))
                 Column {
                     Text(
-                        "CHARGE CYCLES",
+                        stringResource(R.string.cycles_title),
                         color = muted,
                         style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp)
                     )
                     Text(
-                        if (isUnsupported && !isLoadingDetail) "Not reported by device"
-                        else "Full charge equivalents",
+                        stringResource(
+                            if (isUnsupported && !isLoadingDetail) R.string.cycles_not_reported
+                            else R.string.cycles_subtitle
+                        ),
                         color = onSurfV,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -258,14 +266,14 @@ fun CycleCountCard(
                         when {
                             isUnsupported && !isLoadingDetail -> "—"
                             isLoadingDetail                   -> "—"
-                            else                              -> animatedCycles.toInt().toString()
+                            else                              -> animatedCycles.toInt().toString().localDigits()
                         },
                         color = if (isUnsupported && !isLoadingDetail) gaugeGray()
                         else statusColor,
                         style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
-                        "cycles",
+                        pluralStringResource(R.plurals.cycles_label, cycles),
                         color = if (isUnsupported && !isLoadingDetail) gaugeGray()
                         else onSurfV,
                         style = MaterialTheme.typography.bodySmall
@@ -284,7 +292,7 @@ fun CycleCountCard(
                         Box(Modifier.size(8.dp).background(statusColor, CircleShape))
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            statusText,
+                            stringResource(statusTextRes),
                             color = statusColor,
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                         )
@@ -298,10 +306,13 @@ fun CycleCountCard(
                     .background(border, RoundedCornerShape(3.dp))
             ) {
                 if (!isUnsupported) {
+                    // The bar grows from the right in RTL, and its leading edge is the solid end.
+                    val barColors = listOf(statusColor.copy(alpha = 0.7f), statusColor)
+                    val isRtl     = LocalLayoutDirection.current == LayoutDirection.Rtl
                     Box(
                         Modifier.fillMaxWidth(animatedBarFraction).fillMaxHeight()
                             .background(
-                                Brush.horizontalGradient(listOf(statusColor.copy(alpha = 0.7f), statusColor)),
+                                Brush.horizontalGradient(if (isRtl) barColors.reversed() else barColors),
                                 RoundedCornerShape(3.dp)
                             )
                     )
@@ -309,12 +320,12 @@ fun CycleCountCard(
             }
             Spacer(Modifier.height(6.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("0",     color = muted, style = MaterialTheme.typography.labelSmall)
-                Text("2000",  color = if (!isUnsupported && animatedCycles >= 2000) gaugeGreen()  else muted,
+                Text("0".localDigits(),     color = muted, style = MaterialTheme.typography.labelSmall)
+                Text("2000".localDigits(),  color = if (!isUnsupported && animatedCycles >= 2000) gaugeGreen()  else muted,
                     style = MaterialTheme.typography.labelSmall)
-                Text("3000",  color = if (!isUnsupported && animatedCycles >= 3000) gaugeOrange() else muted,
+                Text("3000".localDigits(),  color = if (!isUnsupported && animatedCycles >= 3000) gaugeOrange() else muted,
                     style = MaterialTheme.typography.labelSmall)
-                Text("5000+", color = if (!isUnsupported && animatedCycles >= 5000) gaugeRed()    else muted,
+                Text("5000+".localDigits(), color = if (!isUnsupported && animatedCycles >= 5000) gaugeRed()    else muted,
                     style = MaterialTheme.typography.labelSmall)
             }
         }

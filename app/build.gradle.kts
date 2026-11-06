@@ -44,6 +44,12 @@ android {
         compose = true
         buildConfig = true
     }
+
+    androidResources {
+        // Drop the libraries' other languages, or a Hebrew phone would count as supported
+        // and show the English text in a mirrored layout.
+        localeFilters += listOf("en", "ar")
+    }
 }
 
 dependencies {

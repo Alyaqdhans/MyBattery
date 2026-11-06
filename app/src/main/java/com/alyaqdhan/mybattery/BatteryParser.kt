@@ -241,7 +241,7 @@ object BatteryParser {
                         sections.add(currentLabel to currentSection.trim())
                 }
 
-                if (sections.isEmpty()) return@use "(no battery sections found)"
+                if (sections.isEmpty()) return@use context.getString(R.string.raw_no_sections)
 
                 val logBufferRegex = Regex("""^\[[\w]+LogBuffer\]""")
                 sections.joinToString("\n\n") { (label, content) ->
@@ -263,9 +263,9 @@ object BatteryParser {
                     }.trimEnd()
                     if (label.isNotEmpty()) "━━━ $label ━━━\n\n$filtered" else filtered
                 }
-            } ?: "(could not open file)"
+            } ?: context.getString(R.string.raw_open_failed)
         } catch (e: Exception) {
-            "(read error: ${e.localizedMessage})"
+            context.getString(R.string.raw_read_error, e.localizedMessage)
         }
     }
 

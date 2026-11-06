@@ -26,11 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
@@ -99,21 +99,19 @@ class SetupActivity : ComponentActivity() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 MyBatteryTheme {
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        SetupScreen(
-                            viewModel      = viewModel,
-                            showBackButton = showBack,
-                            onPickFolder   = { folderPicker.launch(null) },
-                            onOpenSettings = { openAppSettings() },
-                            onBack         = { finish() },
-                            onDialCode     = {
-                                startActivity(
-                                    Intent(Intent.ACTION_DIAL,
-                                        Uri.fromParts("tel", viewModel.dialCode, null))
-                                )
-                            }
-                        )
-                    }
+                    SetupScreen(
+                        viewModel      = viewModel,
+                        showBackButton = showBack,
+                        onPickFolder   = { folderPicker.launch(null) },
+                        onOpenSettings = { openAppSettings() },
+                        onBack         = { finish() },
+                        onDialCode     = {
+                            startActivity(
+                                Intent(Intent.ACTION_DIAL,
+                                    Uri.fromParts("tel", viewModel.dialCode, null))
+                            )
+                        }
+                    )
                 }
             }
         }
@@ -158,21 +156,23 @@ private fun SetupScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var editCodeDraft  by remember { mutableStateOf("") }
 
+    val dialCodeLabel = viewModel.dialCode.localDigits()
+
     val steps = listOf(
-        SetupStep(painterResource(R.drawable.phone), "Dial *#9900#",
-            "Click the button on the right and type # to open SysDump menu.",
-            actionLabel  = viewModel.dialCode,
+        SetupStep(painterResource(R.drawable.phone), stringResource(R.string.step_dial_title),
+            stringResource(R.string.step_dial_desc),
+            actionLabel  = dialCodeLabel,
             onAction     = onDialCode,
             onLongAction = {
-                editCodeDraft = viewModel.dialCode
+                editCodeDraft = dialCodeLabel
                 showEditDialog = true
             }),
-        SetupStep(painterResource(R.drawable.play_arrow), "Run dumpstate/logcat",
-            "Tap \"Run dumpstate/logcat\" and wait, it takes a while to create."),
-        SetupStep(painterResource(R.drawable.check),      "Copy to sdcard",
-            "Tap \"Copy to sdcard(include CP Ramdump)\". Logs will be saved to Internal Storage."),
-        SetupStep(painterResource(R.drawable.search),     "Grant folder permission",
-            "Tap the button below, navigate to folder /log/, and allow reading the folder.")
+        SetupStep(painterResource(R.drawable.play_arrow), stringResource(R.string.step_run_title),
+            stringResource(R.string.step_run_desc)),
+        SetupStep(painterResource(R.drawable.check),      stringResource(R.string.step_copy_title),
+            stringResource(R.string.step_copy_desc)),
+        SetupStep(painterResource(R.drawable.search),     stringResource(R.string.step_grant_title),
+            stringResource(R.string.step_grant_desc))
     )
 
     var shown by remember { mutableStateOf(false) }
@@ -223,9 +223,9 @@ private fun SetupScreen(
                     }
                     Spacer(Modifier.width(14.dp))
                     Column {
-                        Text("My Battery", color = tp,
+                        Text(stringResource(R.string.app_name), color = tp,
                             style = MaterialTheme.typography.titleLarge)
-                        Text("Samsung log reader", color = ts,
+                        Text(stringResource(R.string.setup_subtitle), color = ts,
                             style = MaterialTheme.typography.bodySmall)
                     }
                 }
@@ -236,7 +236,7 @@ private fun SetupScreen(
             // ── Steps ─────────────────────────────────────────────────────────
             Box(Modifier.alpha(alpha)) {
                 Column {
-                    Text("How to get your log", color = tp,
+                    Text(stringResource(R.string.setup_how_to), color = tp,
                         style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(20.dp))
                     steps.forEachIndexed { i, step ->
@@ -272,7 +272,7 @@ private fun SetupScreen(
                             )
                             Spacer(Modifier.width(10.dp))
                             Text(
-                                "Scanning folder…",
+                                stringResource(R.string.setup_scanning),
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                             )
                         } else {
@@ -283,15 +283,17 @@ private fun SetupScreen(
                             )
                             Spacer(Modifier.width(10.dp))
                             Text(
-                                if (hasLivePermission) "Permission Already Granted"
-                                else "Grant Permission to Log Folder",
+                                stringResource(
+                                    if (hasLivePermission) R.string.setup_permission_granted
+                                    else R.string.setup_grant_permission
+                                ),
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                             )
                             if (hasLivePermission) {
                                 Spacer(Modifier.width(10.dp))
                                 Icon(
                                     painterResource(R.drawable.arrow_forward_ios),
-                                    "Open app settings",
+                                    stringResource(R.string.setup_open_app_settings),
                                     modifier = Modifier.size(13.dp)
                                 )
                             }
@@ -316,7 +318,7 @@ private fun SetupScreen(
                                     tint = ts, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    "Back to Dashboard",
+                                    stringResource(R.string.setup_back_to_dashboard),
                                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                                 )
                             }
@@ -333,24 +335,27 @@ private fun SetupScreen(
     if (showEditDialog) {
         AlertDialog(
             onDismissRequest = { showEditDialog = false },
-            title = { Text("Edit dial code") },
+            title = { Text(stringResource(R.string.dial_edit_title)) },
             text  = {
+                // A dial code has no letters to set its direction, and it reads left to right.
+                val codeStyle = LocalTextStyle.current.copy(textDirection = TextDirection.Ltr)
                 OutlinedTextField(
                     value         = editCodeDraft,
                     onValueChange = { editCodeDraft = it },
                     singleLine    = true,
-                    label         = { Text("Dial code") },
-                    placeholder   = { Text("*#9900#") }
+                    textStyle     = codeStyle,
+                    label         = { Text(stringResource(R.string.dial_edit_label)) },
+                    placeholder   = { Text(stringResource(R.string.dial_edit_placeholder), style = codeStyle) }
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.saveDialCode(editCodeDraft)
                     showEditDialog = false
-                }) { Text("Save") }
+                }) { Text(stringResource(R.string.action_save)) }
             },
             dismissButton = {
-                TextButton(onClick = { showEditDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showEditDialog = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         )
     }

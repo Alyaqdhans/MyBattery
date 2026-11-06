@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Arabic text. Numbers here use Eastern Arabic digits. Latin text and codes that sit inside an
+    Arabic sentence are wrapped in ⁦...⁩ so they keep their own left-to-right order.
+    The SysDump menu is only in English, so its item names stay in English here.
+-->
+<resources>
+    <string name="app_name">بطاريتي</string>
+
+    <!-- Setup -->
+    <string name="setup_subtitle">قارئ سجلات سامسونج</string>
+    <string name="setup_how_to">طريقة الحصول على السجل</string>
+    <string name="step_dial_title">اطلب ⁦*#٩٩٠٠#⁩</string>
+    <string name="step_dial_desc">اضغط على الزر المجاور ثم اكتب # لفتح قائمة SysDump.</string>
+    <string name="step_run_title">شغّل dumpstate/logcat</string>
+    <string name="step_run_desc">اضغط على \"⁦Run dumpstate/logcat⁩\" وانتظر، فإنشاء السجل يستغرق بعض الوقت.</string>
+    <string name="step_copy_title">انسخ إلى sdcard</string>
+    <string name="step_copy_desc">اضغط على \"⁦Copy to sdcard(include CP Ramdump)⁩\". سيُحفظ السجل في وحدة التخزين الداخلية.</string>
+    <string name="step_grant_title">امنح إذن الوصول إلى المجلد</string>
+    <string name="step_grant_desc">اضغط على الزر أدناه، وانتقل إلى المجلد ⁦/log/⁩، ثم اسمح بقراءة المجلد.</string>
+    <string name="setup_scanning">جارٍ فحص المجلد…</string>
+    <string name="setup_permission_granted">تم منح الإذن بالفعل</string>
+    <string name="setup_grant_permission">امنح الإذن لمجلد السجلات</string>
+    <string name="setup_open_app_settings">فتح إعدادات التطبيق</string>
+    <string name="setup_back_to_dashboard">العودة إلى الشاشة الرئيسية</string>
+    <string name="dial_edit_title">تعديل رمز الاتصال</string>
+    <string name="dial_edit_label">رمز الاتصال</string>
+    <string name="dial_edit_placeholder">*#٩٩٠٠#</string>
+    <string name="action_save">حفظ</string>
+    <string name="action_cancel">إلغاء</string>
+
+    <!-- Dashboard -->
+    <string name="browse_logs">تصفح السجلات</string>
+    <string name="how_to_update_log">طريقة تحديث السجل</string>
+    <string name="log_cached">محفوظ</string>
+    <string name="log_created">أُنشئ السجل %1$s</string>
+    <string name="installed_on">تاريخ التركيب: %1$s</string>
+    <string name="version_label">الإصدار %1$s</string>
+    <string name="log_files_title">ملفات السجل</string>
+    <string name="no_log_files">لم يتم العثور على ملفات سجل</string>
+    <string name="view_raw">عرض السجل الخام</string>
+
+    <!-- Time since a log was created -->
+    <string name="time_just_now">الآن</string>
+    <plurals name="time_minutes">
+        <item quantity="zero">منذ %1$d دقيقة</item>
+        <item quantity="one">منذ دقيقة</item>
+        <item quantity="two">منذ دقيقتين</item>
+        <item quantity="few">منذ %1$d دقائق</item>
+        <item quantity="many">منذ %1$d دقيقة</item>
+        <item quantity="other">منذ %1$d دقيقة</item>
+    </plurals>
+    <plurals name="time_hours">
+        <item quantity="zero">منذ %1$d ساعة</item>
+        <item quantity="one">منذ ساعة</item>
+        <item quantity="two">منذ ساعتين</item>
+        <item quantity="few">منذ %1$d ساعات</item>
+        <item quantity="many">منذ %1$d ساعة</item>
+        <item quantity="other">منذ %1$d ساعة</item>
+    </plurals>
+    <plurals name="time_days">
+        <item quantity="zero">منذ %1$d يوم</item>
+        <item quantity="one">منذ يوم</item>
+        <item quantity="two">منذ يومين</item>
+        <item quantity="few">منذ %1$d أيام</item>
+        <item quantity="many">منذ %1$d يومًا</item>
+        <item quantity="other">منذ %1$d يوم</item>
+    </plurals>
+    <plurals name="time_months">
+        <item quantity="zero">منذ %1$d شهر</item>
+        <item quantity="one">منذ شهر</item>
+        <item quantity="two">منذ شهرين</item>
+        <item quantity="few">منذ %1$d أشهر</item>
+        <item quantity="many">منذ %1$d شهرًا</item>
+        <item quantity="other">منذ %1$d شهر</item>
+    </plurals>
+    <plurals name="time_years">
+        <item quantity="zero">منذ %1$d سنة</item>
+        <item quantity="one">منذ سنة</item>
+        <item quantity="two">منذ سنتين</item>
+        <item quantity="few">منذ %1$d سنوات</item>
+        <item quantity="many">منذ %1$d سنة</item>
+        <item quantity="other">منذ %1$d سنة</item>
+    </plurals>
+
+    <!-- Battery health card -->
+    <string name="gauge_title">صحة البطارية</string>
+    <string name="gauge_percent">%1$d٪</string>
+    <string name="status_loading">جارٍ التحميل</string>
+    <string name="status_scanning_log">جارٍ فحص السجل…</string>
+    <string name="status_unsupported">غير مدعوم</string>
+    <string name="status_device_unsupported">الجهاز غير مدعوم</string>
+    <string name="health_new">جديدة</string>
+    <string name="health_new_message">الهاتف جديد تمامًا</string>
+    <string name="health_good">جيدة</string>
+    <string name="health_good_message">البطارية في حالة ممتازة</string>
+    <string name="health_fair">متوسطة</string>
+    <string name="health_fair_message">سعة البطارية في تراجع</string>
+    <string name="health_poor">ضعيفة</string>
+    <string name="health_poor_message">يُنصح باستبدال البطارية</string>
+
+    <!-- Charge cycles card -->
+    <string name="cycles_title">دورات الشحن</string>
+    <string name="cycles_subtitle">ما يعادل شحنات كاملة</string>
+    <string name="cycles_not_reported">لا يوفّرها الجهاز</string>
+    <plurals name="cycles_label">
+        <item quantity="zero">دورة</item>
+        <item quantity="one">دورة</item>
+        <item quantity="two">دورتان</item>
+        <item quantity="few">دورات</item>
+        <item quantity="many">دورة</item>
+        <item quantity="other">دورة</item>
+    </plurals>
+    <string name="wear_none">بلا تآكل</string>
+    <string name="wear_low">تآكل منخفض</string>
+    <string name="wear_moderate">تآكل متوسط</string>
+    <string name="wear_high">تآكل مرتفع</string>
+    <string name="wear_unavailable">غير متاح</string>
+
+    <!-- Raw log -->
+    <string name="action_back">رجوع</string>
+    <string name="action_search">بحث</string>
+    <string name="search_placeholder">بحث…</string>
+    <string name="search_clear">مسح البحث</string>
+    <string name="raw_title">سطور البطارية</string>
+    <string name="raw_extracting">جارٍ استخراج سطور البطارية…</string>
+    <string name="raw_no_sections">(لم يتم العثور على أقسام البطارية)</string>
+    <string name="raw_open_failed">(تعذّر فتح الملف)</string>
+    <string name="raw_read_error">(خطأ في القراءة: %1$s)</string>
+
+    <!-- Error dialogs -->
+    <string name="error_wrong_folder_title">تم اختيار مجلد خاطئ</string>
+    <string name="error_wrong_folder_body">لم يتم العثور على ملف ⁦dumpState_*.log⁩.\nاختر مجلد السجلات الصحيح بعد تشغيل dumpstate من ⁦*#٩٩٠٠#⁩.</string>
+    <string name="error_folder_missing_title">المجلد غير موجود</string>
+    <string name="error_folder_missing_body">حُذف مجلد السجلات أو لم يعد من الممكن الوصول إليه.\nستحتاج إلى إنشاء ملف سجل جديد.</string>
+    <string name="error_permission_lost_title">تمت إزالة الإذن</string>
+    <string name="error_permission_lost_body">تم سحب إذن المجلد من إعدادات أندرويد.\nامنح الإذن مجددًا لتحديث معلومات البطارية.</string>
+    <string name="action_got_it">حسنًا</string>
+</resources>

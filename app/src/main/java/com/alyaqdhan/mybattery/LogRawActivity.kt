@@ -23,8 +23,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,14 +57,12 @@ class LogRawActivity : ComponentActivity() {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
                 MyBatteryTheme {
-                    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                        LogRawScreen(
-                            fileName  = viewModel.selectedLogFileName,
-                            text      = viewModel.rawLogText,
-                            isLoading = viewModel.isLoadingRaw,
-                            onBack    = { finish() }
-                        )
-                    }
+                    LogRawScreen(
+                        fileName  = viewModel.selectedLogFileName,
+                        text      = viewModel.rawLogText,
+                        isLoading = viewModel.isLoadingRaw,
+                        onBack    = { finish() }
+                    )
                 }
             }
         }
@@ -98,6 +98,8 @@ private fun LogRawScreen(
     var searchQuery  by remember { mutableStateOf("") }
     var searchActive by remember { mutableStateOf(false) }
     val searchFocusRequester = remember { FocusRequester() }
+    // The log uses Western digits, but an Arabic keyboard can type Eastern ones.
+    val logQuery = searchQuery.toWesternDigits()
     LaunchedEffect(searchActive) {
         if (searchActive) searchFocusRequester.requestFocus()
     }
@@ -114,7 +116,7 @@ private fun LogRawScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { if (!backHandled) { backHandled = true; onBack() } }) {
-                Icon(painterResource(R.drawable.arrow_back), "Back", tint = ts)
+                Icon(painterResource(R.drawable.arrow_back), stringResource(R.string.action_back), tint = ts)
             }
 
             if (searchActive) {
@@ -122,7 +124,7 @@ private fun LogRawScreen(
                     value         = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier      = Modifier.weight(1f).focusRequester(searchFocusRequester),
-                    placeholder   = { Text("Search…", style = MaterialTheme.typography.bodyMedium) },
+                    placeholder   = { Text(stringResource(R.string.search_placeholder), style = MaterialTheme.typography.bodyMedium) },
                     singleLine    = true,
                     colors        = TextFieldDefaults.colors(
                         focusedContainerColor   = Color.Transparent,
@@ -130,18 +132,20 @@ private fun LogRawScreen(
                         focusedIndicatorColor   = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
                     ),
+                    // Follows what's typed: searches are usually English, like the log itself.
                     textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = FontFamily.Monospace,
-                        color      = tp
+                        fontFamily    = FontFamily.Monospace,
+                        color         = tp,
+                        textDirection = TextDirection.Content
                     )
                 )
                 if (searchQuery.isNotBlank()) {
-                    val matchCount = remember(searchQuery, text) {
-                        if (searchQuery.isBlank()) 0
+                    val matchCount = remember(logQuery, text) {
+                        if (logQuery.isBlank()) 0
                         else {
                             var count = 0; var idx = 0
                             val lower  = text.lowercase()
-                            val lowerQ = searchQuery.lowercase()
+                            val lowerQ = logQuery.lowercase()
                             while (true) {
                                 val found = lower.indexOf(lowerQ, idx)
                                 if (found < 0) break
@@ -156,7 +160,7 @@ private fun LogRawScreen(
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            "$matchCount",
+                            "$matchCount".localDigits(),
                             color = colors.searchBadgeFg,
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                         )
@@ -164,12 +168,12 @@ private fun LogRawScreen(
                     Spacer(Modifier.width(4.dp))
                 }
                 IconButton(onClick = { searchQuery = ""; searchActive = false }) {
-                    Icon(painterResource(R.drawable.close), "Clear search", tint = ts)
+                    Icon(painterResource(R.drawable.close), stringResource(R.string.search_clear), tint = ts)
                 }
             } else {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Battery Lines", color = tp,
+                        stringResource(R.string.raw_title), color = tp,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                     if (fileName.isNotEmpty()) {
@@ -178,7 +182,7 @@ private fun LogRawScreen(
                     }
                 }
                 IconButton(onClick = { searchActive = true }) {
-                    Icon(painterResource(R.drawable.search), "Search", tint = ts)
+                    Icon(painterResource(R.drawable.search), stringResource(R.string.action_search), tint = ts)
                 }
             }
         }
@@ -194,33 +198,37 @@ private fun LogRawScreen(
                         polygons = LoadingIndicatorDefaults.IndeterminateIndicatorPolygons
                     )
                     Spacer(Modifier.height(14.dp))
-                    Text("Extracting battery lines…", color = ts,
+                    Text(stringResource(R.string.raw_extracting), color = ts,
                         style = MaterialTheme.typography.bodySmall)
                 }
             }
         } else {
-            SelectionContainer {
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 16.dp)
-                ) {
-                    val colorizedText = buildColorizedLogText(text, colors.logKey, colors.logValue, colors.logSection)
-                    val displayText = if (searchQuery.isNotBlank()) {
-                        buildSearchHighlightedText(colorizedText, searchQuery, colors.searchHighlightBg, colors.searchHighlightFg)
-                    } else {
-                        colorizedText
-                    }
-                    Text(
-                        text  = displayText,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontSize   = 11.sp,
-                            lineHeight = 17.sp
+            // Log lines are English technical text, so they stay left-to-right in Arabic too.
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                SelectionContainer {
+                    Column(
+                        Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                    ) {
+                        val colorizedText = buildColorizedLogText(text, colors.logKey, colors.logValue, colors.logSection)
+                        val displayText = if (logQuery.isNotBlank()) {
+                            buildSearchHighlightedText(colorizedText, logQuery, colors.searchHighlightBg, colors.searchHighlightFg)
+                        } else {
+                            colorizedText
+                        }
+                        Text(
+                            text  = displayText,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily    = FontFamily.Monospace,
+                                fontSize      = 11.sp,
+                                lineHeight    = 17.sp,
+                                textDirection = TextDirection.Ltr
+                            )
                         )
-                    )
-                    Spacer(Modifier.height(32.dp))
+                        Spacer(Modifier.height(32.dp))
+                    }
                 }
             }
         }
