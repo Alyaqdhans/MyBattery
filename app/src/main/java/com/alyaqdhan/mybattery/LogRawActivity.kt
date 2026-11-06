@@ -7,7 +7,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,11 +84,7 @@ private fun LogRawScreen(
     val muted  = textMuted()
     val border = cardBorderColor()
     val green  = accentGreenEffective()
-    val isDark = isSystemInDarkTheme()
-
-    val keyColor     = if (isDark) Color(0xFF7A9CC0) else Color(0xFF4A6080)
-    val valueColor   = if (isDark) Color(0xFFF0F4FF) else Color(0xFF0F172A)
-    val sectionColor = if (isDark) Color(0xFF6BB5FF) else Color(0xFF1565C0)
+    val colors = appColors()
 
     var backHandled by remember { mutableStateOf(false) }
     BackHandler(enabled = true) {
@@ -106,9 +101,6 @@ private fun LogRawScreen(
     LaunchedEffect(searchActive) {
         if (searchActive) searchFocusRequester.requestFocus()
     }
-
-    val highlightBg = if (isDark) Color(0xFF3A5030) else Color(0xFFD4EDD4)
-    val highlightFg = if (isDark) Color(0xFF90EE90) else Color(0xFF1B5E20)
 
     Column(Modifier.fillMaxSize().alpha(alpha)) {
 
@@ -160,12 +152,12 @@ private fun LogRawScreen(
                     }
                     Box(
                         Modifier
-                            .background(Color(0xFFFFCC00), RoundedCornerShape(10.dp))
+                            .background(colors.searchBadgeBg, RoundedCornerShape(10.dp))
                             .padding(horizontal = 7.dp, vertical = 2.dp)
                     ) {
                         Text(
                             "$matchCount",
-                            color = Color(0xFF1A1200),
+                            color = colors.searchBadgeFg,
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                         )
                     }
@@ -214,9 +206,9 @@ private fun LogRawScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp, vertical = 16.dp)
                 ) {
-                    val colorizedText = buildColorizedLogText(text, keyColor, valueColor, sectionColor)
+                    val colorizedText = buildColorizedLogText(text, colors.logKey, colors.logValue, colors.logSection)
                     val displayText = if (searchQuery.isNotBlank()) {
-                        buildSearchHighlightedText(colorizedText, searchQuery, highlightBg, highlightFg)
+                        buildSearchHighlightedText(colorizedText, searchQuery, colors.searchHighlightBg, colors.searchHighlightFg)
                     } else {
                         colorizedText
                     }

@@ -69,7 +69,7 @@ fun HealthGaugeCard(
     ElevatedCard(
         modifier  = Modifier.fillMaxWidth(),
         shape     = RoundedCornerShape(24.dp),
-        colors    = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors    = CardDefaults.elevatedCardColors(containerColor = cardColor()),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(
@@ -200,7 +200,7 @@ fun CycleCountCard(
     val (statusColorTarget, statusText) = when {
         isLoadingDetail                  -> Pair(gaugeBlue(),   "Loading")
         isNewBattery                     -> Pair(gaugeBlue(),   "No wear")
-        isUnsupported                    -> Pair(MaterialTheme.colorScheme.outlineVariant, "Unavailable")
+        isUnsupported                    -> Pair(gaugeGray(),   "Unavailable")
         animatedCycles < 2000            -> Pair(gaugeGreen(),  "Low wear")
         animatedCycles < 3000            -> Pair(gaugeOrange(), "Moderate wear")
         else                             -> Pair(gaugeRed(),    "High wear")
@@ -210,7 +210,7 @@ fun CycleCountCard(
     ElevatedCard(
         modifier  = Modifier.fillMaxWidth(),
         shape     = RoundedCornerShape(20.dp),
-        colors    = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors    = CardDefaults.elevatedCardColors(containerColor = cardColor()),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 2.dp)
     ) {
         Column(Modifier.fillMaxWidth().padding(20.dp)) {
@@ -224,8 +224,7 @@ fun CycleCountCard(
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             painterResource(R.drawable.refresh), null,
-                            tint     = if (isUnsupported && !isLoadingDetail)
-                                MaterialTheme.colorScheme.outlineVariant
+                            tint     = if (isUnsupported && !isLoadingDetail) gaugeGray()
                             else statusColor,
                             modifier = Modifier.size(22.dp)
                         )
@@ -261,15 +260,13 @@ fun CycleCountCard(
                             isLoadingDetail                   -> "—"
                             else                              -> animatedCycles.toInt().toString()
                         },
-                        color = if (isUnsupported && !isLoadingDetail)
-                            MaterialTheme.colorScheme.outlineVariant
+                        color = if (isUnsupported && !isLoadingDetail) gaugeGray()
                         else statusColor,
                         style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
                         "cycles",
-                        color = if (isUnsupported && !isLoadingDetail)
-                            MaterialTheme.colorScheme.outlineVariant
+                        color = if (isUnsupported && !isLoadingDetail) gaugeGray()
                         else onSurfV,
                         style = MaterialTheme.typography.bodySmall
                     )

@@ -11,7 +11,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.scrollBy
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -379,7 +378,7 @@ private fun LogSheet(
             }
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 20.dp),
-                color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                color    = textMuted().copy(alpha = 0.5f)
             )
 
             val logsScrollState = rememberScrollState()
@@ -417,7 +416,7 @@ private fun LogSheet(
                             )
                             if (idx < allLogEntries.lastIndex) {
                                 HorizontalDivider(
-                                    color    = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                    color    = textMuted().copy(alpha = 0.3f),
                                     modifier = Modifier.padding(start = 38.dp, end = 16.dp)
                                 )
                             }
@@ -434,9 +433,8 @@ private fun LogSheet(
                     val fraction       = (logsScrollState.value.toFloat() / logsScrollState.maxValue.toFloat()).coerceIn(0f, 1f)
                     val thumbPx        = (trackPx * 0.35f).coerceAtLeast(thumbMinPx)
                     val thumbTopPx     = fraction * (trackPx - thumbPx)
-                    val isDark         = isSystemInDarkTheme()
-                    val thumbColor     = if (isDark) Color(0xFF4A6080) else Color(0xFFB0C0D8)
-                    val trackColor     = if (isDark) Color(0xFF1A2740) else Color(0xFFE2E8F0)
+                    val thumbColor     = appColors().scrollbarThumb
+                    val trackColor     = appColors().scrollbarTrack
 
                     Box(
                         Modifier

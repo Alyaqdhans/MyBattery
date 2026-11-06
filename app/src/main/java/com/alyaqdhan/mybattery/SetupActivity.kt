@@ -1,9 +1,11 @@
 package com.alyaqdhan.mybattery
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.content.pm.ActivityInfo
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -102,6 +104,7 @@ class SetupActivity : ComponentActivity() {
                             viewModel      = viewModel,
                             showBackButton = showBack,
                             onPickFolder   = { folderPicker.launch(null) },
+                            onOpenSettings = { openAppSettings() },
                             onBack         = { finish() },
                             onDialCode     = {
                                 startActivity(
@@ -115,6 +118,30 @@ class SetupActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        // Access can be revoked in Settings while this screen is open. Skip while a folder
+        // pick is being scanned: its result arrives just before this and handles errors itself.
+        val viewModel = appViewModel
+        if (!viewModel.isLoadingDetail) viewModel.checkOnResume()
+    }
+
+    /**
+     * Android gives third-party apps no way to open their Permissions page directly,
+     * so this opens App info, which is one tap away from it.
+     */
+    private fun openAppSettings() {
+        val appInfo = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null)
+        )
+        try {
+            startActivity(appInfo)
+        } catch (_: ActivityNotFoundException) {
+            startActivity(Intent(Settings.ACTION_SETTINGS))
+        }
+    }
 }
 
 // ── SetupScreen composable ────────────────────────────────────────────────────
@@ -124,6 +151,7 @@ private fun SetupScreen(
     viewModel: AppViewModel,
     showBackButton: Boolean,
     onPickFolder: () -> Unit,
+    onOpenSettings: () -> Unit,
     onBack: () -> Unit,
     onDialCode: () -> Unit
 ) {
@@ -159,6 +187,8 @@ private fun SetupScreen(
     val tp                = textPrimary()
     val ts                = textSecondary()
     val onPrimary         = MaterialTheme.colorScheme.onPrimary
+    val grantedContainer  = MaterialTheme.colorScheme.surfaceContainerHighest
+    val grantedContent    = MaterialTheme.colorScheme.onSurfaceVariant
 
     // Show error dialogs (wrong folder, etc.)
     ErrorDialogHost(
@@ -222,15 +252,15 @@ private fun SetupScreen(
             Box(Modifier.alpha(alpha)) {
                 Column {
                     Button(
-                        onClick   = { if (!isScanning) onPickFolder() },
-                        enabled   = !hasLivePermission && !isScanning,
+                        onClick   = { if (hasLivePermission) onOpenSettings() else onPickFolder() },
+                        enabled   = !isScanning,
                         modifier  = Modifier.fillMaxWidth().height(52.dp),
                         shape     = RoundedCornerShape(14.dp),
                         colors    = ButtonDefaults.buttonColors(
-                            containerColor         = green,
-                            contentColor           = onPrimary,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            disabledContentColor   = MaterialTheme.colorScheme.onSurfaceVariant
+                            containerColor         = if (hasLivePermission) grantedContainer else green,
+                            contentColor           = if (hasLivePermission) grantedContent else onPrimary,
+                            disabledContainerColor = grantedContainer,
+                            disabledContentColor   = grantedContent
                         ),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                     ) {
@@ -257,6 +287,14 @@ private fun SetupScreen(
                                 else "Grant Permission to Log Folder",
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                             )
+                            if (hasLivePermission) {
+                                Spacer(Modifier.width(10.dp))
+                                Icon(
+                                    painterResource(R.drawable.arrow_forward_ios),
+                                    "Open app settings",
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
                         }
                     }
 

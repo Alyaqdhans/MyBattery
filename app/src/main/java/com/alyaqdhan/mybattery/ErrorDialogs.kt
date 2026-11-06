@@ -36,7 +36,7 @@ fun ErrorDialogHost(errorDialog: ErrorDialog?, onDismiss: () -> Unit) {
 @Composable
 fun WrongFolderDialog(errorMessage: String, onDismiss: () -> Unit) {
     val isNotFound  = errorMessage == "NO_LOG_FOUND"
-    val accentColor = if (isNotFound) MaterialTheme.colorScheme.tertiary
+    val accentColor = if (isNotFound) warningColor()
                       else MaterialTheme.colorScheme.error
 
     ErrorOverlayDialog(onDismiss = onDismiss) {
@@ -90,7 +90,7 @@ fun FolderDeletedDialog(onDismiss: () -> Unit) {
 @Composable
 fun PermissionLostDialog(onDismiss: () -> Unit) {
     ErrorOverlayDialog(onDismiss = onDismiss) {
-        ErrorIconRow(icon = painterResource(R.drawable.warning), tint = MaterialTheme.colorScheme.tertiary)
+        ErrorIconRow(icon = painterResource(R.drawable.warning), tint = warningColor())
         Spacer(Modifier.height(16.dp))
         Text(
             "Permission Removed",
