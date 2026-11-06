@@ -15,17 +15,16 @@ android {
         applicationId = "com.alyaqdhan.mybattery"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        // major * 10000 + minor * 100 + patch, so it always goes up with versionName
+        versionCode = 20004
         versionName = "2.0.4"
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
 
