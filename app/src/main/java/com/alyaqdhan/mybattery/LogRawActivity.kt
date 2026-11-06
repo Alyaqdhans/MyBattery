@@ -52,6 +52,12 @@ class LogRawActivity : ComponentActivity() {
 
         val viewModel = appViewModel
 
+        // The log text only lives in memory, so there's nothing to show after a restart.
+        if (viewModel.selectedLogFileName.isEmpty()) {
+            finish()
+            return
+        }
+
         val composeView = findViewById<androidx.compose.ui.platform.ComposeView>(R.id.compose_view)
         composeView.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)

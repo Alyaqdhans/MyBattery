@@ -94,6 +94,9 @@ class SetupActivity : ComponentActivity() {
         val viewModel = appViewModel
         val showBack  = intent.getBooleanExtra(EXTRA_SHOW_BACK, false)
 
+        // Restored in a new process: the ViewModel starts out empty, so reload the saved folder.
+        if (savedInstanceState != null && viewModel.folderUri == null) viewModel.initialize()
+
         val composeView = findViewById<androidx.compose.ui.platform.ComposeView>(R.id.compose_view)
         composeView.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)

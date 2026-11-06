@@ -61,8 +61,11 @@ class MainActivity : ComponentActivity() {
 
         val viewModel = appViewModel
 
+        // A restored Activity can land in a new process, where the ViewModel starts out empty.
+        val needsLoad = savedInstanceState == null || viewModel.folderUri == null
+
         // First-run: no folder URI saved → open Setup, finish this Activity
-        if (savedInstanceState == null && !viewModel.initialize()) {
+        if (needsLoad && !viewModel.initialize()) {
             startActivity(Intent(this, SetupActivity::class.java))
             finish()
             return
