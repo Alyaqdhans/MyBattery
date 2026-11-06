@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+        Portrait on phones is deliberate. Android 16+ ignores the lock on tablets and foldables,
+        which the layouts already handle. Remove screenOrientation to allow rotation everywhere.
+    -->
     <application
         android:name=".MyBatteryApp"
         android:allowBackup="true"
@@ -13,6 +17,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyBattery"
+        tools:ignore="DiscouragedApi,LockedOrientationActivity"
         tools:targetApi="33">
 
         <activity

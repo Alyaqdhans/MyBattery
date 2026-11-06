@@ -149,11 +149,11 @@ fun HealthGaugeCard(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ArcGaugePulsing(
-    progress: Float = 1f,
     amplitude: Float,
     trackColor: Color,
     fillColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    progress: Float = 1f
 ) {
     Box(modifier = modifier.scale(scaleX = -1f, scaleY = 1f), contentAlignment = Alignment.Center) {
         CircularWavyProgressIndicator(

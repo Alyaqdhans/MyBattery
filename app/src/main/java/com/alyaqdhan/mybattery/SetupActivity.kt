@@ -3,7 +3,6 @@ package com.alyaqdhan.mybattery
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -79,7 +78,6 @@ class SetupActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_setup)
 

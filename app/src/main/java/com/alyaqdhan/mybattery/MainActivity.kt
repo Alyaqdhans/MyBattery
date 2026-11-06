@@ -1,7 +1,6 @@
 package com.alyaqdhan.mybattery
 
 import android.content.Intent
-import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.*
@@ -32,11 +31,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
 
@@ -44,7 +45,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
 
@@ -168,7 +168,7 @@ private fun BatteryDashboard(
                     Modifier
                         .fillMaxWidth()
                         .alpha(headerAlpha)
-                        .offset(y = headerSlide.dp)
+                        .offset { IntOffset(0, headerSlide.dp.roundToPx()) }
                 ) {
                     FilledTonalIconButton(
                         onClick  = { if (!isLoadingDetail) viewModel.openLogSheet() },
@@ -274,7 +274,7 @@ private fun BatteryDashboard(
                 val isNewBattery = !isLoadingDetail && !effectiveInfo.healthUnsupported &&
                         (effectiveInfo.healthPercent ?: 0) >= 100
 
-                Box(Modifier.alpha(gaugeAlpha).offset(y = gaugeSlide.dp)) {
+                Box(Modifier.alpha(gaugeAlpha).offset { IntOffset(0, gaugeSlide.dp.roundToPx()) }) {
                     HealthGaugeCard(effectiveInfo, isLoadingDetail, arcAnimatable, gaugeAmplitude, gaugeReplayKey)
                 }
                 Spacer(Modifier.height(16.dp))
@@ -436,9 +436,7 @@ private fun LogSheet(
                     val density        = LocalDensity.current
                     val trackPx        = with(density) { trackHeight.toPx() }
                     val thumbMinPx     = with(density) { thumbMinHeight.toPx() }
-                    val fraction       = (logsScrollState.value.toFloat() / logsScrollState.maxValue.toFloat()).coerceIn(0f, 1f)
                     val thumbPx        = (trackPx * 0.35f).coerceAtLeast(thumbMinPx)
-                    val thumbTopPx     = fraction * (trackPx - thumbPx)
                     val thumbColor     = appColors().scrollbarThumb
                     val trackColor     = appColors().scrollbarTrack
 
@@ -462,7 +460,10 @@ private fun LogSheet(
                     ) {
                         Box(
                             Modifier
-                                .offset(y = with(density) { thumbTopPx.toDp() })
+                                .offset {
+                                    val fraction = (logsScrollState.value.toFloat() / logsScrollState.maxValue.toFloat()).coerceIn(0f, 1f)
+                                    IntOffset(0, (fraction * (trackPx - thumbPx)).roundToInt())
+                                }
                                 .width(4.dp)
                                 .height(with(density) { thumbPx.toDp() })
                                 .background(thumbColor, RoundedCornerShape(2.dp))

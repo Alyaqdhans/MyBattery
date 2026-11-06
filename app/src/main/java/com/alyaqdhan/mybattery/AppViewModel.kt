@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.net.Uri
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -18,7 +19,7 @@ import kotlinx.coroutines.withContext
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val context: Context = app.applicationContext
+    private val context: Context get() = getApplication()
     private val prefs = context.getSharedPreferences("battery_prefs", Context.MODE_PRIVATE)
 
     // ── Shared app state ──────────────────────────────────────────────────────
@@ -43,7 +44,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var errorDialog by mutableStateOf<ErrorDialog?>(null) ; private set
 
     // Gauge animation signals
-    var gaugeAmplitude by mutableStateOf(1f)   ; private set
+    var gaugeAmplitude by mutableFloatStateOf(1f) ; private set
     var gaugeReplayKey by mutableIntStateOf(0) ; private set
 
     // ── Dial code ─────────────────────────────────────────────────────────────
