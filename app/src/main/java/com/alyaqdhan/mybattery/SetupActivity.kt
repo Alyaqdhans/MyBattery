@@ -107,6 +107,15 @@ class SetupActivity : ComponentActivity() {
                         showBackButton = showBack,
                         onPickFolder   = { folderPicker.launch(null) },
                         onOpenSettings = { openAppSettings() },
+                        onRemoveAccess = {
+                            viewModel.removeFolderAccess()
+                            // The Dashboard has nothing left to show, so start over from first run.
+                            startActivity(
+                                Intent(this@SetupActivity, SetupActivity::class.java)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                            )
+                            finish()
+                        },
                         onBack         = { finish() },
                         onDialCode     = {
                             startActivity(
@@ -153,11 +162,13 @@ private fun SetupScreen(
     showBackButton: Boolean,
     onPickFolder: () -> Unit,
     onOpenSettings: () -> Unit,
+    onRemoveAccess: () -> Unit,
     onBack: () -> Unit,
     onDialCode: () -> Unit
 ) {
-    var showEditDialog by remember { mutableStateOf(false) }
-    var editCodeDraft  by remember { mutableStateOf("") }
+    var showEditDialog   by remember { mutableStateOf(false) }
+    var editCodeDraft    by remember { mutableStateOf("") }
+    var showRemoveDialog by remember { mutableStateOf(false) }
 
     val dialCodeLabel = viewModel.dialCode.localDigits()
 
@@ -304,6 +315,44 @@ private fun SetupScreen(
                     }
 
                     AnimatedVisibility(
+                        visible = hasLivePermission && !isScanning,
+                        enter   = fadeIn(tween(250)),
+                        exit    = fadeOut(tween(200))
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick  = onPickFolder,
+                                modifier = Modifier.weight(1f).height(52.dp),
+                                shape    = RoundedCornerShape(14.dp),
+                                border   = BorderStroke(1.dp, border),
+                                colors   = ButtonDefaults.outlinedButtonColors(contentColor = tp)
+                            ) {
+                                Text(
+                                    stringResource(R.string.setup_change_folder),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+                            OutlinedButton(
+                                onClick  = { showRemoveDialog = true },
+                                modifier = Modifier.weight(1f).height(52.dp),
+                                shape    = RoundedCornerShape(14.dp),
+                                border   = BorderStroke(1.dp, border),
+                                colors   = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text(
+                                    stringResource(R.string.setup_remove_access),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                )
+                            }
+                        }
+                    }
+
+                    AnimatedVisibility(
                         visible = showBackButton,
                         enter   = fadeIn(tween(250)),
                         exit    = fadeOut(tween(200))
@@ -332,6 +381,29 @@ private fun SetupScreen(
 
             Spacer(Modifier.height(36.dp))
         }
+    }
+
+    // ── Remove access dialog ──────────────────────────────────────────────────
+    if (showRemoveDialog) {
+        AlertDialog(
+            onDismissRequest = { showRemoveDialog = false },
+            title = { Text(stringResource(R.string.remove_access_title)) },
+            text  = { Text(stringResource(R.string.remove_access_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRemoveDialog = false
+                    onRemoveAccess()
+                }) {
+                    Text(
+                        stringResource(R.string.remove_access_confirm),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveDialog = false }) { Text(stringResource(R.string.action_cancel)) }
+            }
+        )
     }
 
     // ── Edit dial code dialog ─────────────────────────────────────────────────

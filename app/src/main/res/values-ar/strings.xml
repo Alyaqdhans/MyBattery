@@ -23,6 +23,11 @@
     <string name="setup_grant_permission">امنح الإذن لمجلد السجلات</string>
     <string name="setup_open_app_settings">فتح إعدادات التطبيق</string>
     <string name="setup_back_to_dashboard">العودة إلى الشاشة الرئيسية</string>
+    <string name="setup_change_folder">تغيير المجلد</string>
+    <string name="setup_remove_access">إزالة الإذن</string>
+    <string name="remove_access_title">إزالة إذن الوصول إلى المجلد؟</string>
+    <string name="remove_access_body">سيتوقف التطبيق عن قراءة هذا المجلد وسيحذف النتائج المحفوظة. يمكنك منح الإذن مجددًا في أي وقت.</string>
+    <string name="remove_access_confirm">إزالة</string>
     <string name="dial_edit_title">تعديل رمز الاتصال</string>
     <string name="dial_edit_label">رمز الاتصال</string>
     <string name="dial_edit_placeholder">*#٩٩٠٠#</string>

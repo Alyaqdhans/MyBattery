@@ -158,15 +158,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             )
         } catch (_: SecurityException) {}
 
-        val isNewFolder = uri.toString() != prefs.getString("folder_uri", null)
-        if (isNewFolder) BatteryCache.clearBatteryInfoCache(prefs)
-
-        folderUri        = uri
-        alreadyHasPerm   = true
-        folderAccessible = true
-        allLogEntries    = emptyList()
-        batteryInfo      = null
-        isLoadingDetail  = true
+        // A bad pick must leave the current folder working, so nothing about it changes until
+        // the new folder has proved itself.
+        val previousUri   = prefs.getString("folder_uri", null)?.toUri()
+        val previousCache = BatteryCache.loadCachedBatteryInfo(prefs)
+        val previousInfo  = batteryInfo
+        val canRollBack   = previousUri != null && previousUri != uri && alreadyHasPerm
+        isLoadingDetail   = true
 
         viewModelScope.launch {
             // First check the folder actually contains a dumpstate log
@@ -176,13 +174,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
             if (latestEntry == null) {
                 // Nothing found — treat as wrong folder, do NOT persist the URI
-                val savedUri     = prefs.getString("folder_uri", null)?.toUri()
-                isLoadingDetail  = false
-                folderAccessible = false
-                alreadyHasPerm   = false
-                folderUri        = savedUri
-                releaseUnusedFolderGrants(keep = savedUri)
-                errorDialog      = ErrorDialog.WrongFolder(
+                isLoadingDetail = false
+                releaseUnusedFolderGrants(keep = previousUri)
+                errorDialog     = ErrorDialog.WrongFolder(
                     "No dumpstate log files found in the selected folder. " +
                             "Please navigate to /Device/log/ and try again."
                 )
@@ -192,8 +186,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
             // Folder looks correct — persist the URI and navigate to Dashboard immediately.
             // The scan continues in the background; the Dashboard shows isLoadingDetail.
+            if (uri != previousUri) BatteryCache.clearBatteryInfoCache(prefs)
             prefs.edit { putString("folder_uri", uri.toString()) }
-            releaseUnusedFolderGrants(keep = uri)
+            folderUri        = uri
+            alreadyHasPerm   = true
+            folderAccessible = true
+            allLogEntries    = emptyList()
+            batteryInfo      = null
             onResult(true)
 
             val info = withContext(Dispatchers.IO) {
@@ -201,17 +200,44 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
             isLoadingDetail = false
 
-            if (info.readSuccess) {
-                batteryInfo    = info
-                hasEverScanned = true
-            } else {
-                // Scan failed — show error on the Dashboard
-                folderAccessible = false
-                alreadyHasPerm   = false
-                folderUri        = prefs.getString("folder_uri", null)?.toUri()
-                errorDialog      = ErrorDialog.WrongFolder(info.errorMessage)
+            when {
+                info.readSuccess -> {
+                    batteryInfo    = info
+                    hasEverScanned = true
+                    releaseUnusedFolderGrants(keep = uri)
+                }
+                canRollBack -> {
+                    // The log held nothing usable — go back to the folder that was working
+                    prefs.edit { putString("folder_uri", previousUri.toString()) }
+                    previousCache?.let { BatteryCache.cacheBatteryInfo(prefs, it) }
+                    releaseUnusedFolderGrants(keep = previousUri)
+                    folderUri   = previousUri
+                    batteryInfo = previousInfo
+                    gaugeReplayKey++
+                    errorDialog = ErrorDialog.WrongFolder(info.errorMessage)
+                }
+                else -> {
+                    // Nothing to go back to — show the Dashboard as unsupported, not stuck loading
+                    batteryInfo = info.copy(healthUnsupported = true)
+                    errorDialog = ErrorDialog.WrongFolder(info.errorMessage)
+                }
             }
         }
+    }
+
+    /** Forgets the folder and everything read from it, as if the app had just been installed. */
+    fun removeFolderAccess() {
+        releaseUnusedFolderGrants(keep = null)
+        BatteryCache.clearBatteryInfoCache(prefs)
+        prefs.edit { remove("folder_uri") }
+        folderUri        = null
+        alreadyHasPerm   = false
+        folderAccessible = true
+        hasEverScanned   = false
+        batteryInfo      = null
+        allLogEntries    = emptyList()
+        showLogSheet     = false
+        errorDialog      = null
     }
 
     /**

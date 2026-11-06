@@ -17,6 +17,11 @@
     <string name="setup_grant_permission">Grant Permission to Log Folder</string>
     <string name="setup_open_app_settings">Open app settings</string>
     <string name="setup_back_to_dashboard">Back to Dashboard</string>
+    <string name="setup_change_folder">Change folder</string>
+    <string name="setup_remove_access">Remove access</string>
+    <string name="remove_access_title">Remove folder access?</string>
+    <string name="remove_access_body">My Battery will stop reading this folder and forget the saved results. You can grant access again at any time.</string>
+    <string name="remove_access_confirm">Remove</string>
     <string name="dial_edit_title">Edit dial code</string>
     <string name="dial_edit_label">Dial code</string>
     <string name="dial_edit_placeholder">*#9900#</string>
