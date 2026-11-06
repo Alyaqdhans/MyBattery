@@ -190,82 +190,88 @@ object BatteryParser {
         val fileUri = DocumentsContract.buildDocumentUriUsingTree(folderUri, entry.id)
         return try {
             context.contentResolver.openInputStream(fileUri)?.use { stream ->
-                val sections = mutableListOf<Pair<String, String>>()
-                var currentSection = ""
-                var currentLabel   = ""
-                var state          = 0
-
-                BufferedReader(InputStreamReader(stream)).use { reader ->
-                    reader.forEachLine { line ->
-                        when (state) {
-                            0 -> when {
-                                line.contains("BatteryInfoBackUp") -> {
-                                    if (currentSection.isNotEmpty())
-                                        sections.add(currentLabel to currentSection.trim())
-                                    state = 1; currentLabel = "BatteryInfoBackUp"; currentSection = ""
-                                }
-                                line.contains("DUMP OF SERVICE battery:") -> {
-                                    if (currentSection.isNotEmpty())
-                                        sections.add(currentLabel to currentSection.trim())
-                                    state = 2; currentLabel = "Battery Service Dump"; currentSection = ""
-                                }
-                            }
-                            1 -> {
-                                if (line.isNotBlank() && !line.startsWith(" ") && !line.startsWith("\t")
-                                    && !line.trimStart().startsWith("m")) {
-                                    state = 0
-                                    if (line.contains("DUMP OF SERVICE battery:")) {
-                                        if (currentSection.isNotEmpty())
-                                            sections.add(currentLabel to currentSection.trim())
-                                        state = 2; currentLabel = "Battery Service Dump"; currentSection = ""
-                                    } else {
-                                        sections.add(currentLabel to currentSection.trim())
-                                        currentSection = ""; currentLabel = ""
-                                    }
-                                } else {
-                                    currentSection += line + "\n"
-                                }
-                            }
-                            2 -> {
-                                if (line.contains("DUMP OF SERVICE") && !line.contains("DUMP OF SERVICE battery:")) {
-                                    state = 0
-                                    sections.add(currentLabel to currentSection.trim())
-                                    currentSection = ""; currentLabel = ""
-                                } else {
-                                    currentSection += line + "\n"
-                                }
-                            }
-                        }
-                    }
-                    if (currentSection.isNotEmpty())
-                        sections.add(currentLabel to currentSection.trim())
-                }
-
-                if (sections.isEmpty()) return@use context.getString(R.string.raw_no_sections)
-
-                val logBufferRegex = Regex("""^\[[\w]+LogBuffer\]""")
-                sections.joinToString("\n\n") { (label, content) ->
-                    val filtered = buildString {
-                        var insideBuffer = false
-                        content.lines().forEach { line ->
-                            val trimmed = line.trim()
-                            when {
-                                logBufferRegex.containsMatchIn(trimmed) -> insideBuffer = true
-                                insideBuffer && trimmed.isEmpty() -> {}
-                                insideBuffer && (trimmed.startsWith("[") || (!trimmed.startsWith(" ") &&
-                                        trimmed.isNotEmpty() && !trimmed.first().isDigit())) -> {
-                                    insideBuffer = false; appendLine(line)
-                                }
-                                insideBuffer -> {}
-                                else -> appendLine(line)
-                            }
-                        }
-                    }.trimEnd()
-                    if (label.isNotEmpty()) "━━━ $label ━━━\n\n$filtered" else filtered
-                }
+                readBatterySections(stream) ?: context.getString(R.string.raw_no_sections)
             } ?: context.getString(R.string.raw_open_failed)
         } catch (e: Exception) {
             context.getString(R.string.raw_read_error, e.localizedMessage)
+        }
+    }
+
+    /** Returns the log's battery sections as one block of text, or null if it has none. */
+    internal fun readBatterySections(stream: InputStream): String? {
+        val sections       = mutableListOf<Pair<String, String>>()
+        val currentSection = StringBuilder()
+        var currentLabel   = ""
+        var state          = 0
+
+        fun closeSection() {
+            sections.add(currentLabel to currentSection.trim().toString())
+            currentSection.clear()
+        }
+
+        BufferedReader(InputStreamReader(stream)).use { reader ->
+            reader.forEachLine { line ->
+                when (state) {
+                    0 -> when {
+                        line.contains("BatteryInfoBackUp") -> {
+                            if (currentSection.isNotEmpty()) closeSection()
+                            state = 1; currentLabel = "BatteryInfoBackUp"
+                        }
+                        line.contains("DUMP OF SERVICE battery:") -> {
+                            if (currentSection.isNotEmpty()) closeSection()
+                            state = 2; currentLabel = "Battery Service Dump"
+                        }
+                    }
+                    1 -> {
+                        if (line.isNotBlank() && !line.startsWith(" ") && !line.startsWith("\t")
+                            && !line.trimStart().startsWith("m")) {
+                            state = 0
+                            if (line.contains("DUMP OF SERVICE battery:")) {
+                                if (currentSection.isNotEmpty()) closeSection()
+                                state = 2; currentLabel = "Battery Service Dump"
+                            } else {
+                                closeSection()
+                                currentLabel = ""
+                            }
+                        } else {
+                            currentSection.append(line).append('\n')
+                        }
+                    }
+                    2 -> {
+                        if (line.contains("DUMP OF SERVICE") && !line.contains("DUMP OF SERVICE battery:")) {
+                            state = 0
+                            closeSection()
+                            currentLabel = ""
+                        } else {
+                            currentSection.append(line).append('\n')
+                        }
+                    }
+                }
+            }
+            if (currentSection.isNotEmpty()) closeSection()
+        }
+
+        if (sections.isEmpty()) return null
+
+        val logBufferRegex = Regex("""^\[[\w]+LogBuffer\]""")
+        return sections.joinToString("\n\n") { (label, content) ->
+            val filtered = buildString {
+                var insideBuffer = false
+                content.lines().forEach { line ->
+                    val trimmed = line.trim()
+                    when {
+                        logBufferRegex.containsMatchIn(trimmed) -> insideBuffer = true
+                        insideBuffer && trimmed.isEmpty() -> {}
+                        insideBuffer && (trimmed.startsWith("[") || (!trimmed.startsWith(" ") &&
+                                trimmed.isNotEmpty() && !trimmed.first().isDigit())) -> {
+                            insideBuffer = false; appendLine(line)
+                        }
+                        insideBuffer -> {}
+                        else -> appendLine(line)
+                    }
+                }
+            }.trimEnd()
+            if (label.isNotEmpty()) "━━━ $label ━━━\n\n$filtered" else filtered
         }
     }
 

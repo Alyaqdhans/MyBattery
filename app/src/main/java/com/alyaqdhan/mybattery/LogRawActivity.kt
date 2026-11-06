@@ -8,10 +8,10 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -212,28 +212,27 @@ private fun LogRawScreen(
             // Log lines are English technical text, so they stay left-to-right in Arabic too.
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 SelectionContainer {
-                    Column(
-                        Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 16.dp)
+                    val lines = remember(text) { text.lines() }
+                    val lineStyle = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily    = FontFamily.Monospace,
+                        fontSize      = 11.sp,
+                        lineHeight    = 17.sp,
+                        textDirection = TextDirection.Ltr
+                    )
+                    // One item per line, so a big log only lays out and colors what's on screen.
+                    LazyColumn(
+                        modifier       = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 48.dp)
                     ) {
-                        val colorizedText = buildColorizedLogText(text, colors.logKey, colors.logValue, colors.logSection)
-                        val displayText = if (logQuery.isNotBlank()) {
-                            buildSearchHighlightedText(colorizedText, logQuery, colors.searchHighlightBg, colors.searchHighlightFg)
-                        } else {
-                            colorizedText
+                        items(lines) { line ->
+                            val displayLine = remember(line, logQuery, colors) {
+                                buildSearchHighlightedText(
+                                    buildColorizedLogLine(line, colors.logKey, colors.logValue, colors.logSection),
+                                    logQuery, colors.searchHighlightBg, colors.searchHighlightFg
+                                )
+                            }
+                            Text(text = displayLine, modifier = Modifier.fillMaxWidth(), style = lineStyle)
                         }
-                        Text(
-                            text  = displayText,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily    = FontFamily.Monospace,
-                                fontSize      = 11.sp,
-                                lineHeight    = 17.sp,
-                                textDirection = TextDirection.Ltr
-                            )
-                        )
-                        Spacer(Modifier.height(32.dp))
                     }
                 }
             }
