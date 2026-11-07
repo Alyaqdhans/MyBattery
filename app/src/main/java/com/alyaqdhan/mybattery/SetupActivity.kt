@@ -8,7 +8,6 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -30,7 +29,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
@@ -196,8 +194,6 @@ private fun SetupScreen(
     val heroAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(350), label = "setup_hero")
     val bodyAlpha by animateFloatAsState(
         if (shown) 1f else 0f, tween(400, delayMillis = 140), label = "setup_body")
-    val bodySlide by animateFloatAsState(
-        if (shown) 0f else 24f, tween(400, easing = FastOutSlowInEasing, delayMillis = 140), label = "setup_slide")
 
     // isLoadingDetail is true while the ViewModel is scanning after folder pick
     val isScanning        = viewModel.isLoadingDetail
@@ -254,12 +250,7 @@ private fun SetupScreen(
 
                 Spacer(Modifier.height(24.dp))
 
-                Column(
-                    Modifier
-                        .alpha(bodyAlpha)
-                        .offset { IntOffset(0, bodySlide.dp.roundToPx()) },
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
+                Column(Modifier.alpha(bodyAlpha), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     // ── Steps ─────────────────────────────────────────────────
                     SetupCard {
                         Column(Modifier.padding(20.dp)) {

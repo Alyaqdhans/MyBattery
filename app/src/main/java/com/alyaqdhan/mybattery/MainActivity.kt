@@ -128,12 +128,8 @@ private fun BatteryDashboard(
     LaunchedEffect(Unit) { shown = true }
 
     val headerAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(400), label = "ha")
-    val headerSlide by animateFloatAsState(
-        if (shown) 0f else -18f, tween(400, easing = FastOutSlowInEasing), label = "hs")
     val gaugeAlpha  by animateFloatAsState(
         if (shown) 1f else 0f, tween(450, delayMillis = 140), label = "ga")
-    val gaugeSlide  by animateFloatAsState(
-        if (shown) 0f else 24f, tween(450, easing = FastOutSlowInEasing, delayMillis = 140), label = "gs")
     val cardAlpha   by animateFloatAsState(
         if (shown) 1f else 0f, tween(400, delayMillis = 280), label = "ca")
 
@@ -164,12 +160,7 @@ private fun BatteryDashboard(
                 Spacer(Modifier.height(52.dp))
 
                 // ── Header row ────────────────────────────────────────────────
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .alpha(headerAlpha)
-                        .offset { IntOffset(0, headerSlide.dp.roundToPx()) }
-                ) {
+                Box(Modifier.fillMaxWidth().alpha(headerAlpha)) {
                     FilledTonalIconButton(
                         onClick  = { if (!isLoadingDetail) viewModel.openLogSheet() },
                         enabled  = !isLoadingDetail,
@@ -274,7 +265,7 @@ private fun BatteryDashboard(
                 val isNewBattery = !isLoadingDetail && !effectiveInfo.healthUnsupported &&
                         (effectiveInfo.healthPercent ?: 0) >= 100
 
-                Box(Modifier.alpha(gaugeAlpha).offset { IntOffset(0, gaugeSlide.dp.roundToPx()) }) {
+                Box(Modifier.alpha(gaugeAlpha)) {
                     HealthGaugeCard(effectiveInfo, isLoadingDetail, arcAnimatable, gaugeAmplitude, gaugeReplayKey)
                 }
                 Spacer(Modifier.height(16.dp))
