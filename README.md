@@ -1,7 +1,8 @@
 # MyBattery
 
 <img width="250" alt="Screenshot_20261107-073946_My Battery" src="https://github.com/user-attachments/assets/a595121e-b44f-4a02-9077-caf02e98947c" />
-<img width="250" alt="Screenshot_20261107-073941_My Battery" src="https://github.com/user-attachments/assets/4292ab59-fc88-4df1-a77a-277c6ec89eac" />
+<img width="250" alt="Screenshot_20261108-013036_My Battery" src="https://github.com/user-attachments/assets/ae7c8e1d-3d40-4a04-9aa0-5d522ccdbdda" />
+
 
 
 
