@@ -1,7 +1,7 @@
 [versions]
 # AGP 9 compiles Kotlin itself, so there is no kotlin-android plugin. This is the newest
-# version Android Studio 2026.1 supports. Material3 1.5 needs at least AGP 9.1.
-agp = "9.2.1"
+# version Android Studio 2026.2 supports. Material3 1.5 needs at least AGP 9.1.
+agp = "9.5.1"
 # Sets the Kotlin version: AGP's built-in Kotlin is raised to match the Compose compiler plugin.
 kotlin = "2.4.21"
 coreKtx = "1.19.1"

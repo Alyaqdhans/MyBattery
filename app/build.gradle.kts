@@ -15,8 +15,8 @@ android {
         minSdk = 26
         targetSdk = 37
         // major * 10000 + minor * 100 + patch, so it always goes up with versionName
-        versionCode = 20004
-        versionName = "2.0.4"
+        versionCode = 20100
+        versionName = "2.1.0"
     }
 
     buildTypes {
@@ -30,11 +30,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    lint {
-        // AGP 9.2 is the newest line Android Studio 2026.1 can open. Remove after updating Studio.
-        disable += "AndroidGradlePluginVersion"
     }
 
     buildFeatures {
