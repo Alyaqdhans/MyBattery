@@ -278,7 +278,7 @@ private fun SetupScreen(
                             onClick  = onBack,
                             modifier = Modifier.padding(top = ScreenContentTop + 23.dp).size(40.dp),
                             colors   = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                containerColor = cornerButtonColor(),
                                 contentColor   = MaterialTheme.colorScheme.onSurface
                             )
                         ) {

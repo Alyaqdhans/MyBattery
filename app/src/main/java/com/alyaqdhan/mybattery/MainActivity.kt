@@ -166,7 +166,7 @@ private fun BatteryDashboard(
                         enabled  = !isLoadingDetail,
                         modifier = Modifier.align(Alignment.CenterStart).size(40.dp),
                         colors   = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            containerColor = cornerButtonColor(),
                             contentColor   = MaterialTheme.colorScheme.onSurface
                         )
                     ) {
@@ -251,7 +251,7 @@ private fun BatteryDashboard(
                         enabled  = !isLoadingDetail,
                         modifier = Modifier.align(Alignment.CenterEnd).size(40.dp),
                         colors   = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            containerColor = cornerButtonColor(),
                             contentColor   = MaterialTheme.colorScheme.onSurface
                         )
                     ) {

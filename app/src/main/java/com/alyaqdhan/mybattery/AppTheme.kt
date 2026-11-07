@@ -132,6 +132,7 @@ data class AppColors(
     val page: Color,
     val card: Color,
     val cardBorder: Color,
+    val cornerButton: Color,
     val textMuted: Color,
     val gaugeGreen: Color,
     val gaugeOrange: Color,
@@ -155,6 +156,7 @@ private val ClassicDarkColors = AppColors(
     page              = Color(0xFF0A0E1A), // Matches values-night/themes.xml
     card              = DarkBgCard,
     cardBorder        = DarkBgCardBorder,
+    cornerButton      = ClassicDarkScheme.surfaceContainerHighest,
     textMuted         = DarkTextMuted,
     gaugeGreen        = AccentGreen,
     gaugeOrange       = AccentOrange,
@@ -178,6 +180,7 @@ private val ClassicLightColors = AppColors(
     page              = Color(0xFFFAFAFA), // Matches the Theme.Material.Light window
     card              = LightBgCard,
     cardBorder        = LightBgCardBorder,
+    cornerButton      = ClassicLightScheme.surfaceContainerHighest,
     textMuted         = LightTextMuted,
     gaugeGreen        = AccentGreenLight,
     gaugeOrange       = AccentOrangeLight,
@@ -200,11 +203,15 @@ private val ClassicLightColors = AppColors(
 /**
  * Android 12+: everything follows the wallpaper except the gauge and warning colors, which
  * stay fixed so that a red wallpaper can't make a healthy battery look like a failing one.
+ *
+ * Cards and the corner buttons sit well apart from the page so they read clearly: in dark,
+ * near-black cards on a lighter page; in light, white cards on a gray page.
  */
 private fun dynamicAppColors(scheme: ColorScheme, darkTheme: Boolean) =
     (if (darkTheme) ClassicDarkColors else ClassicLightColors).copy(
-        page              = scheme.background,
-        card              = scheme.surfaceContainer,
+        page              = if (darkTheme) scheme.surfaceContainerHighest else scheme.surfaceContainerHigh,
+        card              = scheme.surfaceContainerLowest,
+        cornerButton      = if (darkTheme) scheme.surfaceContainer else scheme.surfaceContainerLowest,
         cardBorder        = scheme.outlineVariant,
         textMuted         = scheme.outline,
         gaugeGray         = scheme.outline,
@@ -254,6 +261,7 @@ fun MyBatteryTheme(
 @Composable fun appColors()             = LocalAppColors.current
 @Composable fun cardColor()             = appColors().card
 @Composable fun cardBorderColor()       = appColors().cardBorder
+@Composable fun cornerButtonColor()     = appColors().cornerButton
 @Composable fun textPrimary()           = MaterialTheme.colorScheme.onBackground
 @Composable fun textSecondary()         = MaterialTheme.colorScheme.onSurfaceVariant
 @Composable fun textMuted()             = appColors().textMuted
