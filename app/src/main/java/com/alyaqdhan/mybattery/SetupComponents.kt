@@ -136,7 +136,8 @@ data class SetupStep(
     val desc: String,
     val actionLabel: String? = null,
     val onAction: (() -> Unit)? = null,
-    val onEditAction: (() -> Unit)? = null
+    val onEditAction: (() -> Unit)? = null,
+    val content: (@Composable () -> Unit)? = null
 )
 
 /** One stop on the steps timeline. A finished step swaps its number for a tick. */
@@ -197,6 +198,10 @@ fun SetupStepRow(number: Int, step: SetupStep, isLast: Boolean, isDone: Boolean 
                 Spacer(Modifier.height(10.dp))
                 DialCodeButton(step.actionLabel, step.onAction, step.onEditAction)
             }
+            step.content?.let {
+                Spacer(Modifier.height(12.dp))
+                it()
+            }
         }
     }
 }
@@ -241,6 +246,77 @@ private fun DialCodeButton(label: String, onDial: () -> Unit, onEdit: () -> Unit
                 Modifier.size(18.dp).semantics { contentDescription = editLabel },
                 textSecondary()
             )
+        }
+    }
+}
+
+/** Step 4 once the folder is granted: how things stand, and how to change them. */
+@Composable
+fun FolderAccess(
+    isScanning: Boolean,
+    onOpenSettings: () -> Unit,
+    onChangeFolder: () -> Unit,
+    onRemoveAccess: () -> Unit
+) {
+    val green         = accentGreenEffective()
+    val actionStyle   = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+    val settingsLabel = stringResource(R.string.setup_open_app_settings)
+    val buttonPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+
+    Column {
+        Surface(
+            onClick = onOpenSettings,
+            enabled = !isScanning,
+            shape   = RoundedCornerShape(12.dp),
+            color   = green.copy(alpha = 0.12f),
+            border  = BorderStroke(1.dp, green.copy(alpha = 0.35f))
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (isScanning) {
+                    CircularProgressIndicator(Modifier.size(16.dp), color = green, strokeWidth = 2.dp)
+                } else {
+                    MatchedIcon(R.drawable.ic_sym_check_circle, actionStyle, Modifier.size(16.dp), green)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(if (isScanning) R.string.setup_scanning else R.string.setup_permission_granted),
+                    modifier = Modifier.weight(1f),
+                    color    = green,
+                    style    = actionStyle
+                )
+                if (!isScanning) {
+                    MatchedIcon(
+                        R.drawable.ic_sym_chevron_right,
+                        actionStyle,
+                        Modifier.size(18.dp).semantics { contentDescription = settingsLabel },
+                        green
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(Modifier.fillMaxWidth()) {
+            TextButton(
+                onClick        = onChangeFolder,
+                enabled        = !isScanning,
+                modifier       = Modifier.weight(1f).heightIn(min = 48.dp),
+                contentPadding = buttonPadding,
+                colors         = ButtonDefaults.textButtonColors(contentColor = textPrimary())
+            ) {
+                Text(stringResource(R.string.setup_change_folder), style = actionStyle)
+            }
+            TextButton(
+                onClick        = onRemoveAccess,
+                enabled        = !isScanning,
+                modifier       = Modifier.weight(1f).heightIn(min = 48.dp),
+                contentPadding = buttonPadding,
+                colors         = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text(stringResource(R.string.setup_remove_access), style = actionStyle)
+            }
         }
     }
 }

@@ -25,7 +25,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
@@ -173,6 +172,16 @@ private fun SetupScreen(
 
     val dialCodeLabel = viewModel.dialCode.localDigits()
 
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val heroAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(350), label = "setup_hero")
+    val bodyAlpha by animateFloatAsState(
+        if (shown) 1f else 0f, tween(400, delayMillis = 140), label = "setup_body")
+
+    // isLoadingDetail is true while the ViewModel is scanning after folder pick
+    val isScanning        = viewModel.isLoadingDetail
+    val hasLivePermission = viewModel.alreadyHasPerm
+
     val steps = listOf(
         SetupStep(
             icon         = R.drawable.ic_sym_call,
@@ -187,18 +196,24 @@ private fun SetupScreen(
         ),
         SetupStep(R.drawable.ic_sym_play_arrow, stringResource(R.string.step_run_title), stringResource(R.string.step_run_desc)),
         SetupStep(R.drawable.ic_sym_sd_card, stringResource(R.string.step_copy_title), stringResource(R.string.step_copy_desc)),
-        SetupStep(R.drawable.ic_sym_folder, stringResource(R.string.step_grant_title), stringResource(R.string.step_grant_desc))
+        SetupStep(
+            icon    = R.drawable.ic_sym_folder,
+            title   = stringResource(R.string.step_grant_title),
+            desc    = stringResource(R.string.step_grant_desc),
+            content = if (hasLivePermission) {
+                {
+                    FolderAccess(
+                        isScanning     = isScanning,
+                        onOpenSettings = onOpenSettings,
+                        onChangeFolder = onPickFolder,
+                        onRemoveAccess = { showRemoveDialog = true }
+                    )
+                }
+            } else {
+                null
+            }
+        )
     )
-
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    val heroAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(350), label = "setup_hero")
-    val bodyAlpha by animateFloatAsState(
-        if (shown) 1f else 0f, tween(400, delayMillis = 140), label = "setup_body")
-
-    // isLoadingDetail is true while the ViewModel is scanning after folder pick
-    val isScanning        = viewModel.isLoadingDetail
-    val hasLivePermission = viewModel.alreadyHasPerm
     val green             = accentGreenEffective()
     val border            = cardBorderColor()
     val page              = appColors().page
@@ -254,7 +269,7 @@ private fun SetupScreen(
                     }
                 }
 
-                Column(Modifier.alpha(bodyAlpha), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.alpha(bodyAlpha)) {
                     // ── Steps ─────────────────────────────────────────────────
                     SetupCard {
                         Column(Modifier.padding(20.dp)) {
@@ -270,75 +285,6 @@ private fun SetupScreen(
                                     isLast = i == steps.lastIndex,
                                     isDone = i == steps.lastIndex && hasLivePermission
                                 )
-                            }
-                        }
-                    }
-
-                    // ── Folder access ─────────────────────────────────────────
-                    if (hasLivePermission) {
-                        SetupCard {
-                            Surface(
-                                onClick = onOpenSettings,
-                                enabled = !isScanning,
-                                color   = Color.Transparent
-                            ) {
-                                Row(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 20.dp, vertical = 18.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (isScanning) {
-                                        CircularProgressIndicator(
-                                            modifier    = Modifier.size(22.dp),
-                                            color       = green,
-                                            strokeWidth = 2.dp
-                                        )
-                                    } else {
-                                        Icon(
-                                            painterResource(R.drawable.ic_sym_check_circle), null,
-                                            tint     = green,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                    Spacer(Modifier.width(12.dp))
-                                    Text(
-                                        stringResource(
-                                            if (isScanning) R.string.setup_scanning
-                                            else R.string.setup_permission_granted
-                                        ),
-                                        modifier = Modifier.weight(1f),
-                                        color    = tp,
-                                        style    = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-                                    )
-                                    if (!isScanning) {
-                                        Icon(
-                                            painterResource(R.drawable.ic_sym_arrow_forward_ios),
-                                            stringResource(R.string.setup_open_app_settings),
-                                            tint     = muted,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                    }
-                                }
-                            }
-                            HorizontalDivider(color = border)
-                            Row(Modifier.fillMaxWidth().padding(8.dp)) {
-                                TextButton(
-                                    onClick  = onPickFolder,
-                                    enabled  = !isScanning,
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                    colors   = ButtonDefaults.textButtonColors(contentColor = tp)
-                                ) {
-                                    Text(stringResource(R.string.setup_change_folder), style = cardActionStyle)
-                                }
-                                TextButton(
-                                    onClick  = { showRemoveDialog = true },
-                                    enabled  = !isScanning,
-                                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                                    colors   = ButtonDefaults.textButtonColors(contentColor = error)
-                                ) {
-                                    Text(stringResource(R.string.setup_remove_access), style = cardActionStyle)
-                                }
                             }
                         }
                     }
