@@ -40,7 +40,7 @@
     <string name="how_to_update_log">طريقة تحديث السجل</string>
     <string name="log_cached">محفوظ</string>
     <string name="log_created">أُنشئ السجل %1$s</string>
-    <string name="installed_on">تاريخ التركيب: %1$s</string>
+    <string name="installed_on">تم التركيب في %1$s</string>
     <string name="version_label">الإصدار %1$s</string>
     <string name="log_files_title">ملفات السجل</string>
     <string name="no_log_files">لم يتم العثور على ملفات سجل</string>
