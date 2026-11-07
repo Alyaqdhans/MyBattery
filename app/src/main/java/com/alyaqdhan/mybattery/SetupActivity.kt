@@ -10,7 +10,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -215,7 +214,6 @@ private fun SetupScreen(
         )
     )
     val green             = accentGreenEffective()
-    val border            = cardBorderColor()
     val page              = appColors().page
     val tp                = textPrimary()
     val ts                = textSecondary()
@@ -357,15 +355,13 @@ private fun SetupScreen(
             }
 
             if (showBackButton) {
-                OutlinedButton(
+                TextButton(
                     onClick  = onBack,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-                    shape    = RoundedCornerShape(14.dp),
-                    border   = BorderStroke(1.dp, border),
-                    colors   = ButtonDefaults.outlinedButtonColors(contentColor = tp)
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    colors   = ButtonDefaults.textButtonColors(contentColor = tp)
                 ) {
-                    MatchedIcon(R.drawable.ic_sym_arrow_back, cardActionStyle, Modifier.size(20.dp), ts)
-                    Spacer(Modifier.width(10.dp))
+                    MatchedIcon(R.drawable.ic_sym_arrow_back, cardActionStyle, Modifier.size(18.dp), ts)
+                    Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.setup_back_to_dashboard), style = cardActionStyle)
                 }
             }
