@@ -228,7 +228,6 @@ private fun SetupScreen(
                 Modifier
                     .fillMaxSize()
                     .verticalScroll(scroll)
-                    .statusBarsPadding()
                     .padding(horizontal = 20.dp)
             ) {
                 // ── Header ────────────────────────────────────────────────────
@@ -236,7 +235,7 @@ private fun SetupScreen(
                     Modifier
                         .fillMaxWidth()
                         .graphicsLayer { alpha = heroAlpha } // Modifier.alpha would clip the logo's glow
-                        .padding(vertical = 20.dp),
+                        .padding(top = ScreenContentTop - 9.dp, bottom = 20.dp), // Level with the Dashboard's title
                     verticalAlignment     = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
                 ) {

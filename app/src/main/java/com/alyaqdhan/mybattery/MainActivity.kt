@@ -157,7 +157,7 @@ private fun BatteryDashboard(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
             ) {
-                Spacer(Modifier.height(52.dp))
+                Spacer(Modifier.height(ScreenContentTop))
 
                 // ── Header row ────────────────────────────────────────────────
                 Box(Modifier.fillMaxWidth().alpha(headerAlpha)) {
@@ -361,8 +361,9 @@ private fun LogSheet(
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
+                    .padding(top = ScreenContentTop)
+                    .height(40.dp)
+                    .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(

@@ -8,6 +8,14 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+/**
+ * Where every screen's content starts, measured from the top of the window. It's a fixed height
+ * and not the status bar's, which differs between phones, so that headings stay level from one
+ * screen to the next.
+ */
+internal val ScreenContentTop = 52.dp
 
 /**
  * How far along its track a scrollbar thumb sits, from 0 to 1.

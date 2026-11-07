@@ -115,7 +115,7 @@ private fun LogRawScreen(
             Modifier
                 .fillMaxWidth()
                 .padding(start = 4.dp, end = 4.dp)
-                .padding(top = 52.dp)
+                .padding(top = ScreenContentTop)
                 .height(56.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
