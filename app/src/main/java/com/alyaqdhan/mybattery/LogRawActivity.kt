@@ -60,7 +60,7 @@ class LogRawActivity : ComponentActivity() {
         composeView.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MyBatteryTheme(dynamicColor = viewModel.useDynamicColor) {
+                MyBatteryTheme {
                     LogRawScreen(
                         fileName  = viewModel.selectedLogFileName,
                         text      = viewModel.rawLogText,

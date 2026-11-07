@@ -22,9 +22,6 @@
     <string name="remove_access_title">Remove folder access?</string>
     <string name="remove_access_body">My Battery will stop reading this folder and forget the saved results. You can grant access again at any time.</string>
     <string name="remove_access_confirm">Remove</string>
-    <string name="theme_title">App colors</string>
-    <string name="theme_wallpaper">Wallpaper</string>
-    <string name="theme_classic">Classic</string>
     <string name="dial_edit_title">Edit dial code</string>
     <string name="dial_edit_label">Dial code</string>
     <string name="dial_edit_placeholder">*#9900#</string>

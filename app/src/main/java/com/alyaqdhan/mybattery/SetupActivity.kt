@@ -3,7 +3,6 @@ package com.alyaqdhan.mybattery
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -101,7 +100,7 @@ class SetupActivity : ComponentActivity() {
         composeView.apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
             setContent {
-                MyBatteryTheme(dynamicColor = viewModel.useDynamicColor) {
+                MyBatteryTheme {
                     SetupScreen(
                         viewModel      = viewModel,
                         showBackButton = showBack,
@@ -344,32 +343,6 @@ private fun SetupScreen(
                                     colors   = ButtonDefaults.textButtonColors(contentColor = error)
                                 ) {
                                     Text(stringResource(R.string.setup_remove_access), style = cardActionStyle)
-                                }
-                            }
-                        }
-                    }
-
-                    // ── App colors ────────────────────────────────────────────
-                    // Wallpaper colors only exist on Android 12+, so older versions have nothing to pick.
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        SetupCard {
-                            Column(Modifier.padding(20.dp)) {
-                                Text(
-                                    stringResource(R.string.theme_title), color = tp,
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                                    SegmentedButton(
-                                        selected = viewModel.useDynamicColor,
-                                        onClick  = { viewModel.saveUseDynamicColor(true) },
-                                        shape    = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
-                                    ) { Text(stringResource(R.string.theme_wallpaper)) }
-                                    SegmentedButton(
-                                        selected = !viewModel.useDynamicColor,
-                                        onClick  = { viewModel.saveUseDynamicColor(false) },
-                                        shape    = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
-                                    ) { Text(stringResource(R.string.theme_classic)) }
                                 }
                             }
                         }

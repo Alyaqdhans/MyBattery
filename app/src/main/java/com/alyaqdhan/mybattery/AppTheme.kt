@@ -228,14 +228,13 @@ private val LocalAppColors = staticCompositionLocalOf<AppColors> {
 @Composable
 fun MyBatteryTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
     val colorScheme: ColorScheme
     val appColors: AppColors
 
-    if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         colorScheme = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         appColors   = dynamicAppColors(colorScheme, darkTheme)
     } else {

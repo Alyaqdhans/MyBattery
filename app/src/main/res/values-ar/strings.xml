@@ -28,9 +28,6 @@
     <string name="remove_access_title">إزالة إذن الوصول إلى المجلد؟</string>
     <string name="remove_access_body">سيتوقف التطبيق عن قراءة هذا المجلد وسيحذف النتائج المحفوظة. يمكنك منح الإذن مجددًا في أي وقت.</string>
     <string name="remove_access_confirm">إزالة</string>
-    <string name="theme_title">ألوان التطبيق</string>
-    <string name="theme_wallpaper">ألوان الخلفية</string>
-    <string name="theme_classic">الألوان الكلاسيكية</string>
     <string name="dial_edit_title">تعديل رمز الاتصال</string>
     <string name="dial_edit_label">رمز الاتصال</string>
     <string name="dial_edit_placeholder">*#٩٩٠٠#</string>
