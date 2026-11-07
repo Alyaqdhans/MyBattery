@@ -297,23 +297,29 @@ fun FolderAccess(
                 }
             }
         }
-        Spacer(Modifier.height(4.dp))
-        Row(Modifier.fillMaxWidth()) {
-            TextButton(
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
                 onClick        = onChangeFolder,
                 enabled        = !isScanning,
-                modifier       = Modifier.weight(1f).heightIn(min = 48.dp),
+                modifier       = Modifier.weight(1f).heightIn(min = 44.dp),
+                shape          = RoundedCornerShape(12.dp),
                 contentPadding = buttonPadding,
-                colors         = ButtonDefaults.textButtonColors(contentColor = textPrimary())
+                colors         = ButtonDefaults.buttonColors(
+                    containerColor = green,
+                    contentColor   = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
                 Text(stringResource(R.string.setup_change_folder), style = actionStyle)
             }
-            TextButton(
+            OutlinedButton(
                 onClick        = onRemoveAccess,
                 enabled        = !isScanning,
-                modifier       = Modifier.weight(1f).heightIn(min = 48.dp),
+                modifier       = Modifier.weight(1f).heightIn(min = 44.dp),
+                shape          = RoundedCornerShape(12.dp),
                 contentPadding = buttonPadding,
-                colors         = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                border         = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (isScanning) 0.3f else 0.6f)),
+                colors         = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
                 Text(stringResource(R.string.setup_remove_access), style = actionStyle)
             }
