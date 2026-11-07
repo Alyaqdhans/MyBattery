@@ -235,7 +235,7 @@ fun MyBatteryTheme(
     val appColors: AppColors
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        colorScheme = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        colorScheme = systemColorScheme(context, darkTheme)
         appColors   = dynamicAppColors(colorScheme, darkTheme)
     } else {
         colorScheme = if (darkTheme) ClassicDarkScheme else ClassicLightScheme
