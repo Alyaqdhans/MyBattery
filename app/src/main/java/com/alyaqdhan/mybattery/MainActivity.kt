@@ -461,7 +461,7 @@ private fun LogSheet(
                         Box(
                             Modifier
                                 .offset {
-                                    val fraction = (logsScrollState.value.toFloat() / logsScrollState.maxValue.toFloat()).coerceIn(0f, 1f)
+                                    val fraction = scrollbarFraction(logsScrollState.value, logsScrollState.maxValue)
                                     IntOffset(0, (fraction * (trackPx - thumbPx)).roundToInt())
                                 }
                                 .width(4.dp)

@@ -9,6 +9,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
+/**
+ * How far along its track a scrollbar thumb sits, from 0 to 1.
+ *
+ * [maxValue] is 0 when the content fits without scrolling. The range is only known once the
+ * content is measured, after the scrollbar was composed, so a check there doesn't cover this.
+ */
+internal fun scrollbarFraction(value: Int, maxValue: Int): Float =
+    if (maxValue > 0) (value.toFloat() / maxValue).coerceIn(0f, 1f) else 0f
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RescanPullToRefreshBox(
