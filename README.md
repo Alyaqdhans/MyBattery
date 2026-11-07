@@ -1,7 +1,9 @@
 # MyBattery
 
-<img src="https://github.com/user-attachments/assets/7ead41a7-9d7b-4ce0-bf57-b9ef57ed6205" width="222">
-<img src="https://github.com/user-attachments/assets/20247c8d-9865-4778-afd1-63840fc8055d" width="222">
+<img width="250" alt="Screenshot_20261107-073946_My Battery" src="https://github.com/user-attachments/assets/a595121e-b44f-4a02-9077-caf02e98947c" />
+<img width="250" alt="Screenshot_20261107-073941_My Battery" src="https://github.com/user-attachments/assets/4292ab59-fc88-4df1-a77a-277c6ec89eac" />
+
+
 
 ## Nerdy details
 MyBattery reads Samsung dumpstate battery logs (`dumpState_*.log`) and extracts the following values:
