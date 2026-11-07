@@ -378,11 +378,17 @@ private fun SetupScreen(
             title = { Text(stringResource(R.string.remove_access_title)) },
             text  = { Text(stringResource(R.string.remove_access_body)) },
             confirmButton = {
-                TextButton(onClick = {
-                    showRemoveDialog = false
-                    onRemoveAccess()
-                }) {
-                    Text(stringResource(R.string.remove_access_confirm), color = error)
+                Button(
+                    onClick = {
+                        showRemoveDialog = false
+                        onRemoveAccess()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = error,
+                        contentColor   = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Text(stringResource(R.string.remove_access_confirm))
                 }
             },
             dismissButton = {
@@ -409,10 +415,16 @@ private fun SetupScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.saveDialCode(editCodeDraft)
-                    showEditDialog = false
-                }) { Text(stringResource(R.string.action_save)) }
+                Button(
+                    onClick = {
+                        viewModel.saveDialCode(editCodeDraft)
+                        showEditDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = green,
+                        contentColor   = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) { Text(stringResource(R.string.action_save)) }
             },
             dismissButton = {
                 TextButton(onClick = { showEditDialog = false }) { Text(stringResource(R.string.action_cancel)) }
