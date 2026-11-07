@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -61,56 +62,57 @@ fun AppLogo(modifier: Modifier = Modifier) {
         trace.animateTo(1f, tween(1000, delayMillis = 250, easing = FastOutSlowInEasing))
     }
 
-    Box(modifier.size(132.dp), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(Brush.radialGradient(listOf(primary.copy(alpha = 0.24f), Color.Transparent)))
-        )
-        Canvas(
-            Modifier
-                .size(96.dp)
-                .graphicsLayer {
-                    scaleX = pop.value
-                    scaleY = pop.value
-                }
-                .background(Brush.linearGradient(listOf(primary, lerp(primary, onPrimary, 0.24f))), badge)
-        ) {
-            val unit = size.minDimension / 100f
-
-            // Battery body and terminal
-            drawRoundRect(
-                color        = onPrimary,
-                topLeft      = Offset(22f * unit, 34f * unit),
-                size         = Size(50f * unit, 32f * unit),
-                cornerRadius = CornerRadius(9f * unit),
-                style        = Stroke(width = 4.6f * unit)
-            )
-            drawRoundRect(
-                color        = onPrimary,
-                topLeft      = Offset(75.5f * unit, 44f * unit),
-                size         = Size(4f * unit, 12f * unit),
-                cornerRadius = CornerRadius(2f * unit)
-            )
-
-            // Heartbeat
-            val pulse = Path().apply {
-                moveTo(29f * unit, 50f * unit)
-                lineTo(39f * unit, 50f * unit)
-                lineTo(44f * unit, 41f * unit)
-                lineTo(51f * unit, 59f * unit)
-                lineTo(56f * unit, 50f * unit)
-                lineTo(65f * unit, 50f * unit)
+    Canvas(
+        modifier
+            .size(72.dp)
+            .drawBehind {
+                // Reaches past the badge without taking up layout space around it
+                val radius = size.minDimension * 0.69f
+                drawCircle(
+                    Brush.radialGradient(listOf(primary.copy(alpha = 0.24f), Color.Transparent), center, radius),
+                    radius
+                )
             }
-            val measure = PathMeasure().apply { setPath(pulse, false) }
-            val traced  = Path()
-            measure.getSegment(0f, measure.length * trace.value, traced, true)
-            drawPath(
-                path  = traced,
-                color = onPrimary,
-                style = Stroke(width = 3.8f * unit, cap = StrokeCap.Round, join = StrokeJoin.Round)
-            )
+            .graphicsLayer {
+                scaleX = pop.value
+                scaleY = pop.value
+            }
+            .background(Brush.linearGradient(listOf(primary, lerp(primary, onPrimary, 0.24f))), badge)
+    ) {
+        val unit = size.minDimension / 100f
+
+        // Battery body and terminal
+        drawRoundRect(
+            color        = onPrimary,
+            topLeft      = Offset(22f * unit, 34f * unit),
+            size         = Size(50f * unit, 32f * unit),
+            cornerRadius = CornerRadius(9f * unit),
+            style        = Stroke(width = 4.6f * unit)
+        )
+        drawRoundRect(
+            color        = onPrimary,
+            topLeft      = Offset(75.5f * unit, 44f * unit),
+            size         = Size(4f * unit, 12f * unit),
+            cornerRadius = CornerRadius(2f * unit)
+        )
+
+        // Heartbeat
+        val pulse = Path().apply {
+            moveTo(29f * unit, 50f * unit)
+            lineTo(39f * unit, 50f * unit)
+            lineTo(44f * unit, 41f * unit)
+            lineTo(51f * unit, 59f * unit)
+            lineTo(56f * unit, 50f * unit)
+            lineTo(65f * unit, 50f * unit)
         }
+        val measure = PathMeasure().apply { setPath(pulse, false) }
+        val traced  = Path()
+        measure.getSegment(0f, measure.length * trace.value, traced, true)
+        drawPath(
+            path  = traced,
+            color = onPrimary,
+            style = Stroke(width = 3.8f * unit, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
     }
 }
 

@@ -231,24 +231,28 @@ private fun SetupScreen(
                     .statusBarsPadding()
                     .padding(horizontal = 20.dp)
             ) {
-                // ── Hero ──────────────────────────────────────────────────────
-                Column(
-                    Modifier.fillMaxWidth().alpha(heroAlpha),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                // ── Header ────────────────────────────────────────────────────
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer { alpha = heroAlpha } // Modifier.alpha would clip the logo's glow
+                        .padding(vertical = 20.dp),
+                    verticalAlignment     = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
                 ) {
                     AppLogo()
-                    Text(
-                        stringResource(R.string.app_name), color = tp,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        stringResource(R.string.setup_subtitle), color = ts,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Column(Modifier.weight(1f, fill = false)) {
+                        Text(
+                            stringResource(R.string.app_name), color = tp,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            stringResource(R.string.setup_subtitle), color = ts,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
-
-                Spacer(Modifier.height(24.dp))
 
                 Column(Modifier.alpha(bodyAlpha), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     // ── Steps ─────────────────────────────────────────────────
