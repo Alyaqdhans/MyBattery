@@ -10,6 +10,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -301,15 +302,6 @@ private fun SetupScreen(
                         .background(Brush.verticalGradient(listOf(page, Color.Transparent)))
                 )
             }
-
-            // Fades the cards out under the bottom buttons
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(20.dp)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, page)))
-            )
         }
 
         // ── Bottom actions ────────────────────────────────────────────────────
@@ -355,10 +347,12 @@ private fun SetupScreen(
             }
 
             if (showBackButton) {
-                TextButton(
+                OutlinedButton(
                     onClick  = onBack,
                     modifier = Modifier.align(Alignment.CenterHorizontally),
-                    colors   = ButtonDefaults.textButtonColors(contentColor = tp)
+                    shape    = RoundedCornerShape(12.dp),
+                    border   = BorderStroke(1.dp, cardBorderColor()),
+                    colors   = ButtonDefaults.outlinedButtonColors(contentColor = tp)
                 ) {
                     MatchedIcon(R.drawable.ic_sym_arrow_back, cardActionStyle, Modifier.size(18.dp), ts)
                     Spacer(Modifier.width(8.dp))
