@@ -8,8 +8,6 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,7 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -172,12 +169,6 @@ private fun SetupScreen(
 
     val dialCodeLabel = viewModel.dialCode.localDigits()
 
-    var shown by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { shown = true }
-    val heroAlpha by animateFloatAsState(if (shown) 1f else 0f, tween(350), label = "setup_hero")
-    val bodyAlpha by animateFloatAsState(
-        if (shown) 1f else 0f, tween(400, delayMillis = 140), label = "setup_body")
-
     // isLoadingDetail is true while the ViewModel is scanning after folder pick
     val isScanning        = viewModel.isLoadingDetail
     val hasLivePermission = viewModel.alreadyHasPerm
@@ -246,11 +237,7 @@ private fun SetupScreen(
                     .padding(horizontal = 20.dp)
             ) {
                 // ── Header ────────────────────────────────────────────────────
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { alpha = heroAlpha } // Modifier.alpha would clip the logo's glow
-                ) {
+                Box(Modifier.fillMaxWidth()) {
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -291,7 +278,7 @@ private fun SetupScreen(
                     }
                 }
 
-                Column(Modifier.alpha(bodyAlpha)) {
+                Column {
                     // ── Steps ─────────────────────────────────────────────────
                     SetupCard {
                         Column(Modifier.padding(20.dp)) {
