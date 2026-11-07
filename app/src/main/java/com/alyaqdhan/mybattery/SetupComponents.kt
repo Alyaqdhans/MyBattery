@@ -33,11 +33,15 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -261,7 +265,7 @@ fun FolderAccess(
     val green         = accentGreenEffective()
     val actionStyle   = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
     val settingsLabel = stringResource(R.string.setup_open_app_settings)
-    val buttonPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)
+    val buttonPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
 
     Column {
         Surface(
@@ -298,11 +302,11 @@ fun FolderAccess(
             }
         }
         Spacer(Modifier.height(10.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        ButtonPair(spacing = 10.dp) {
             Button(
                 onClick        = onChangeFolder,
                 enabled        = !isScanning,
-                modifier       = Modifier.weight(1f).heightIn(min = 44.dp),
+                modifier       = Modifier.heightIn(min = 44.dp),
                 shape          = RoundedCornerShape(12.dp),
                 contentPadding = buttonPadding,
                 colors         = ButtonDefaults.buttonColors(
@@ -310,18 +314,49 @@ fun FolderAccess(
                     contentColor   = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
-                Text(stringResource(R.string.setup_change_folder), style = actionStyle)
+                Text(stringResource(R.string.setup_change_folder), style = actionStyle, textAlign = TextAlign.Center)
             }
             OutlinedButton(
                 onClick        = onRemoveAccess,
                 enabled        = !isScanning,
-                modifier       = Modifier.weight(1f).heightIn(min = 44.dp),
+                modifier       = Modifier.heightIn(min = 44.dp),
                 shape          = RoundedCornerShape(12.dp),
                 contentPadding = buttonPadding,
                 border         = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = if (isScanning) 0.3f else 0.6f)),
                 colors         = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
             ) {
-                Text(stringResource(R.string.setup_remove_access), style = actionStyle)
+                Text(stringResource(R.string.setup_remove_access), style = actionStyle, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+/**
+ * Two buttons side by side and equally wide when both labels fit on one line, or stacked at full
+ * width when they don't, so large text sizes and longer translations never wrap a label.
+ */
+@Composable
+private fun ButtonPair(spacing: Dp, content: @Composable () -> Unit) {
+    Layout(content) { measurables, constraints ->
+        val gap   = spacing.roundToPx()
+        val width = constraints.maxWidth
+        val half  = (width - gap) / 2
+        val sideBySide = measurables.all { it.maxIntrinsicWidth(Constraints.Infinity) <= half }
+
+        val placeables = measurables.map {
+            it.measure(Constraints.fixedWidth(if (sideBySide) half else width))
+        }
+        val height = if (sideBySide) {
+            placeables.maxOf { it.height }
+        } else {
+            placeables.sumOf { it.height } + gap * (placeables.size - 1)
+        }
+        layout(width, height) {
+            var x = 0
+            var y = 0
+            placeables.forEach {
+                it.placeRelative(x, y)
+                if (sideBySide) x += it.width + gap else y += it.height + gap
             }
         }
     }
