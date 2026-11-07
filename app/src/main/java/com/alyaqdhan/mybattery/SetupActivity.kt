@@ -10,7 +10,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -25,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
@@ -246,25 +246,48 @@ private fun SetupScreen(
                     .padding(horizontal = 20.dp)
             ) {
                 // ── Header ────────────────────────────────────────────────────
-                Row(
+                Box(
                     Modifier
                         .fillMaxWidth()
                         .graphicsLayer { alpha = heroAlpha } // Modifier.alpha would clip the logo's glow
-                        .padding(top = ScreenContentTop - 9.dp, bottom = 20.dp), // Level with the Dashboard's title
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
                 ) {
-                    AppLogo()
-                    Column(Modifier.weight(1f, fill = false)) {
-                        Text(
-                            stringResource(R.string.app_name), color = tp,
-                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            stringResource(R.string.setup_subtitle), color = ts,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = ScreenContentTop - 9.dp, bottom = 20.dp), // Level with the Dashboard's title
+                        verticalAlignment     = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)
+                    ) {
+                        AppLogo()
+                        Column(Modifier.weight(1f, fill = false)) {
+                            Text(
+                                stringResource(R.string.app_name), color = tp,
+                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                stringResource(R.string.setup_subtitle), color = ts,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
+                    if (showBackButton) {
+                        // Same place and style as the Dashboard's corner buttons
+                        FilledTonalIconButton(
+                            onClick  = onBack,
+                            modifier = Modifier.padding(top = ScreenContentTop + 23.dp).size(40.dp),
+                            colors   = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor   = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_sym_chevron_left),
+                                stringResource(R.string.setup_back_to_dashboard),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 }
 
@@ -343,20 +366,6 @@ private fun SetupScreen(
                         ),
                         style = cardActionStyle
                     )
-                }
-            }
-
-            if (showBackButton) {
-                OutlinedButton(
-                    onClick  = onBack,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    shape    = RoundedCornerShape(12.dp),
-                    border   = BorderStroke(1.dp, cardBorderColor()),
-                    colors   = ButtonDefaults.outlinedButtonColors(contentColor = tp)
-                ) {
-                    MatchedIcon(R.drawable.ic_sym_arrow_back, cardActionStyle, Modifier.size(18.dp), ts)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.setup_back_to_dashboard), style = cardActionStyle)
                 }
             }
         }
