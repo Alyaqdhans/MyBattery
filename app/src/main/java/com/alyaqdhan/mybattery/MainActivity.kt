@@ -313,10 +313,10 @@ private fun BatteryDashboard(
         // ── Log sheet drop-down ───────────────────────────────────────────────
         AnimatedVisibility(
             visible = showLogSheet && !isLoadingDetail,
-            enter   = slideInVertically(tween(320, easing = FastOutSlowInEasing)) { -it } +
-                    fadeIn(tween(220, easing = FastOutSlowInEasing)),
-            exit    = slideOutVertically(tween(240, easing = FastOutLinearInEasing)) { -it } +
-                    fadeOut(tween(180, easing = FastOutLinearInEasing))
+            enter   = slideInVertically(tween(400, easing = TrayEnterEasing)) { -it } +
+                    fadeIn(tween(200)),
+            exit    = slideOutVertically(tween(220, easing = TrayExitEasing)) { -it } +
+                    fadeOut(tween(220, easing = TrayExitEasing))
         ) {
             LogSheet(
                 allLogEntries   = allLogEntries,
@@ -334,6 +334,10 @@ private fun BatteryDashboard(
 }
 
 // ── Log sheet ─────────────────────────────────────────────────────────────────
+
+// Material's emphasized curves: the tray arrives fast and settles, then leaves without lingering.
+private val TrayEnterEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+private val TrayExitEasing  = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
 
 @Composable
 private fun LogSheet(
