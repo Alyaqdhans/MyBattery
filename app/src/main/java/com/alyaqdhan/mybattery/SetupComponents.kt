@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -32,8 +33,9 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
@@ -129,6 +131,7 @@ fun SetupCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.()
 }
 
 data class SetupStep(
+    @param:DrawableRes val icon: Int,
     val title: String,
     val desc: String,
     val actionLabel: String? = null,
@@ -139,7 +142,8 @@ data class SetupStep(
 /** One stop on the steps timeline. A finished step swaps its number for a tick. */
 @Composable
 fun SetupStepRow(number: Int, step: SetupStep, isLast: Boolean, isDone: Boolean = false) {
-    val green = accentGreenEffective()
+    val green      = accentGreenEffective()
+    val titleStyle = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
 
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -150,10 +154,11 @@ fun SetupStepRow(number: Int, step: SetupStep, isLast: Boolean, isDone: Boolean 
                 contentAlignment = Alignment.Center
             ) {
                 if (isDone) {
-                    Icon(
-                        painterResource(R.drawable.check), null,
-                        tint     = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp)
+                    MatchedIcon(
+                        R.drawable.ic_sym_check,
+                        MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        Modifier.size(18.dp),
+                        MaterialTheme.colorScheme.onPrimary
                     )
                 } else {
                     Text(
@@ -177,11 +182,11 @@ fun SetupStepRow(number: Int, step: SetupStep, isLast: Boolean, isDone: Boolean 
         Spacer(Modifier.width(14.dp))
 
         Column(Modifier.weight(1f).padding(top = 5.dp, bottom = if (isLast) 0.dp else 22.dp)) {
-            Text(
-                step.title,
-                color = textPrimary(),
-                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MatchedIcon(step.icon, titleStyle, Modifier.size(18.dp), green)
+                Spacer(Modifier.width(8.dp))
+                Text(step.title, color = textPrimary(), style = titleStyle)
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 step.desc,
@@ -199,7 +204,12 @@ fun SetupStepRow(number: Int, step: SetupStep, isLast: Boolean, isDone: Boolean 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DialCodeButton(label: String, onDial: () -> Unit, onEdit: () -> Unit) {
-    val green = accentGreenEffective()
+    val green     = accentGreenEffective()
+    val codeStyle = MaterialTheme.typography.labelLarge.copy(
+        fontWeight    = FontWeight.Bold,
+        textDirection = TextDirection.Ltr
+    )
+    val editLabel = stringResource(R.string.dial_edit_title)
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Surface(
@@ -213,30 +223,23 @@ private fun DialCodeButton(label: String, onDial: () -> Unit, onEdit: () -> Unit
                     .padding(horizontal = 14.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painterResource(R.drawable.phone), null,
-                    tint     = green,
-                    modifier = Modifier.size(16.dp)
-                )
+                MatchedIcon(R.drawable.ic_sym_call, codeStyle, Modifier.size(16.dp), green)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     label,
                     color    = green,
-                    style    = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight    = FontWeight.Bold,
-                        textDirection = TextDirection.Ltr
-                    ),
+                    style    = codeStyle,
                     softWrap = false
                 )
             }
         }
         Spacer(Modifier.width(4.dp))
         IconButton(onClick = onEdit) {
-            Icon(
-                painterResource(R.drawable.edit),
-                stringResource(R.string.dial_edit_title),
-                tint     = textSecondary(),
-                modifier = Modifier.size(18.dp)
+            MatchedIcon(
+                R.drawable.ic_sym_edit,
+                codeStyle,
+                Modifier.size(18.dp).semantics { contentDescription = editLabel },
+                textSecondary()
             )
         }
     }

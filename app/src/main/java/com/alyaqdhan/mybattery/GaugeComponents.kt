@@ -229,7 +229,7 @@ fun CycleCountCard(
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            painterResource(R.drawable.refresh), null,
+                            painterResource(R.drawable.ic_sym_refresh), null,
                             tint     = if (isUnsupported && !isLoadingDetail) gaugeGray()
                             else statusColor,
                             modifier = Modifier.size(22.dp)

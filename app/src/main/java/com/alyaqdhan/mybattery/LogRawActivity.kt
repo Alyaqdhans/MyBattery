@@ -120,7 +120,7 @@ private fun LogRawScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = { if (!backHandled) { backHandled = true; onBack() } }) {
-                Icon(painterResource(R.drawable.arrow_back), stringResource(R.string.action_back), tint = ts)
+                Icon(painterResource(R.drawable.ic_sym_arrow_back), stringResource(R.string.action_back), tint = ts)
             }
 
             if (searchActive) {
@@ -172,7 +172,7 @@ private fun LogRawScreen(
                     Spacer(Modifier.width(4.dp))
                 }
                 IconButton(onClick = { searchQuery = ""; searchActive = false }) {
-                    Icon(painterResource(R.drawable.close), stringResource(R.string.search_clear), tint = ts)
+                    Icon(painterResource(R.drawable.ic_sym_close), stringResource(R.string.search_clear), tint = ts)
                 }
             } else {
                 Column(Modifier.weight(1f)) {
@@ -186,7 +186,7 @@ private fun LogRawScreen(
                     }
                 }
                 IconButton(onClick = { searchActive = true }) {
-                    Icon(painterResource(R.drawable.search), stringResource(R.string.action_search), tint = ts)
+                    Icon(painterResource(R.drawable.ic_sym_search), stringResource(R.string.action_search), tint = ts)
                 }
             }
         }

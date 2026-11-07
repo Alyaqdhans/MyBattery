@@ -173,7 +173,7 @@ private fun BatteryDashboard(
                         // The arrow is mirrored in RTL, so turn it the other way to still point down.
                         val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
                         Icon(
-                            painterResource(R.drawable.arrow_back), stringResource(R.string.browse_logs),
+                            painterResource(R.drawable.ic_sym_arrow_back), stringResource(R.string.browse_logs),
                             modifier = Modifier.size(20.dp).rotate(if (isRtl) 90f else -90f)
                         )
                     }
@@ -255,7 +255,7 @@ private fun BatteryDashboard(
                             contentColor   = MaterialTheme.colorScheme.onSurface
                         )
                     ) {
-                        Icon(painterResource(R.drawable.info), stringResource(R.string.how_to_update_log),
+                        Icon(painterResource(R.drawable.ic_sym_info), stringResource(R.string.how_to_update_log),
                             modifier = Modifier.size(18.dp))
                     }
                 }
@@ -530,7 +530,7 @@ private fun LogEntry(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    painterResource(R.drawable.arrow_forward_ios),
+                    painterResource(R.drawable.ic_sym_arrow_forward_ios),
                     contentDescription = stringResource(R.string.view_raw),
                     tint     = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(13.dp)

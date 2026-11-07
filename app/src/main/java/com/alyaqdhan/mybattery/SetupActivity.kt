@@ -175,6 +175,7 @@ private fun SetupScreen(
 
     val steps = listOf(
         SetupStep(
+            icon         = R.drawable.ic_sym_call,
             title        = stringResource(R.string.step_dial_title),
             desc         = stringResource(R.string.step_dial_desc),
             actionLabel  = dialCodeLabel,
@@ -184,9 +185,9 @@ private fun SetupScreen(
                 showEditDialog = true
             }
         ),
-        SetupStep(stringResource(R.string.step_run_title), stringResource(R.string.step_run_desc)),
-        SetupStep(stringResource(R.string.step_copy_title), stringResource(R.string.step_copy_desc)),
-        SetupStep(stringResource(R.string.step_grant_title), stringResource(R.string.step_grant_desc))
+        SetupStep(R.drawable.ic_sym_play_arrow, stringResource(R.string.step_run_title), stringResource(R.string.step_run_desc)),
+        SetupStep(R.drawable.ic_sym_sd_card, stringResource(R.string.step_copy_title), stringResource(R.string.step_copy_desc)),
+        SetupStep(R.drawable.ic_sym_folder, stringResource(R.string.step_grant_title), stringResource(R.string.step_grant_desc))
     )
 
     var shown by remember { mutableStateOf(false) }
@@ -295,7 +296,7 @@ private fun SetupScreen(
                                         )
                                     } else {
                                         Icon(
-                                            painterResource(R.drawable.check_circle), null,
+                                            painterResource(R.drawable.ic_sym_check_circle), null,
                                             tint     = green,
                                             modifier = Modifier.size(22.dp)
                                         )
@@ -312,7 +313,7 @@ private fun SetupScreen(
                                     )
                                     if (!isScanning) {
                                         Icon(
-                                            painterResource(R.drawable.arrow_forward_ios),
+                                            painterResource(R.drawable.ic_sym_arrow_forward_ios),
                                             stringResource(R.string.setup_open_app_settings),
                                             tint     = muted,
                                             modifier = Modifier.size(13.dp)
@@ -397,7 +398,7 @@ private fun SetupScreen(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(painterResource(R.drawable.folder), null, modifier = Modifier.size(20.dp))
+                        MatchedIcon(R.drawable.ic_sym_folder, cardActionStyle, Modifier.size(20.dp))
                     }
                     Spacer(Modifier.width(10.dp))
                     Text(
@@ -417,8 +418,7 @@ private fun SetupScreen(
                     border   = BorderStroke(1.dp, border),
                     colors   = ButtonDefaults.outlinedButtonColors(contentColor = tp)
                 ) {
-                    Icon(painterResource(R.drawable.arrow_back), null,
-                        tint = ts, modifier = Modifier.size(20.dp))
+                    MatchedIcon(R.drawable.ic_sym_arrow_back, cardActionStyle, Modifier.size(20.dp), ts)
                     Spacer(Modifier.width(10.dp))
                     Text(stringResource(R.string.setup_back_to_dashboard), style = cardActionStyle)
                 }

@@ -41,7 +41,7 @@ fun WrongFolderDialog(errorMessage: String, onDismiss: () -> Unit) {
                       else MaterialTheme.colorScheme.error
 
     ErrorOverlayDialog(onDismiss = onDismiss) {
-        ErrorIconRow(icon = painterResource(R.drawable.warning), tint = accentColor)
+        ErrorIconRow(icon = painterResource(R.drawable.ic_sym_warning), tint = accentColor)
         Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.error_wrong_folder_title),
@@ -66,7 +66,7 @@ fun WrongFolderDialog(errorMessage: String, onDismiss: () -> Unit) {
 @Composable
 fun FolderDeletedDialog(onDismiss: () -> Unit) {
     ErrorOverlayDialog(onDismiss = onDismiss) {
-        ErrorIconRow(icon = painterResource(R.drawable.delete), tint = MaterialTheme.colorScheme.error)
+        ErrorIconRow(icon = painterResource(R.drawable.ic_sym_delete), tint = MaterialTheme.colorScheme.error)
         Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.error_folder_missing_title),
@@ -91,7 +91,7 @@ fun FolderDeletedDialog(onDismiss: () -> Unit) {
 @Composable
 fun PermissionLostDialog(onDismiss: () -> Unit) {
     ErrorOverlayDialog(onDismiss = onDismiss) {
-        ErrorIconRow(icon = painterResource(R.drawable.warning), tint = warningColor())
+        ErrorIconRow(icon = painterResource(R.drawable.ic_sym_warning), tint = warningColor())
         Spacer(Modifier.height(16.dp))
         Text(
             stringResource(R.string.error_permission_lost_title),
@@ -163,7 +163,7 @@ private fun ErrorDismissButton(onClick: () -> Unit) {
             contentColor   = MaterialTheme.colorScheme.onPrimary
         )
     ) {
-        Icon(painterResource(R.drawable.check_circle), null, modifier = Modifier.size(18.dp))
+        Icon(painterResource(R.drawable.ic_sym_check_circle), null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(stringResource(R.string.action_got_it), style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold))
     }
